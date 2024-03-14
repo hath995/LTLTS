@@ -1,6 +1,3 @@
-import exp from "constants";
-
-//type LTLFormula<A> = ;
 type Predicate<A> = (state: A) => boolean;
 
 type LTLPredicate<A> = {
