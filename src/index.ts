@@ -450,9 +450,9 @@ export function step<A>(expr: LTLFormula<A>, state: A): LTLFormula<A> {
         case "pred":
             return stepPred(expr, state);
         case "true":
-            return expr;
+            return LTLTrue;
         case "false":
-            return expr;
+            return LTLFalse;
         case "and":
             return stepAnd(expr, state);
         case "or":
