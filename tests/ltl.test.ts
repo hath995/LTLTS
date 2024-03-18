@@ -103,7 +103,7 @@ describe("FVOr", () => {
     });
 });
 
-describe.only("step", () => {
+describe("step", () => {
     it("should handle true", () => {
         expect(LTL.step(LTL.True(), null)).toEqual(LTL.True());
     });
@@ -206,7 +206,7 @@ describe.only("step", () => {
     // });
 });
 
-describe.only("ltlEvaluate", () => {
+describe("ltlEvaluate", () => {
     it("should handle true", () => {
         expect(LTL.ltlEvaluate([1], LTL.True())).toEqual(LTL.Definitely(true));
     });
@@ -263,8 +263,12 @@ describe.only("ltlEvaluate", () => {
 
     it("should property based test eventually", () => {
         fc.assert(fc.property(fc.array(fc.integer(), {minLength: 1}), fc.integer(), (arr, x) => {
-            return expect(LTL.ltlEvaluate(arr, LTL.Eventually(arr.length, (y: number) => y === x))).toEqual(arr.includes(x) ? LTL.Definitely(true) : LTL.Probably(false));
-        }));
+            return expect(LTL.ltlEvaluate(arr, LTL.Eventually(arr.length, (y: number) => y === x))).toEqual(arr.includes(x) ? LTL.Definitely(true) : LTL.Probably(true));
+        }), {
+            examples: [
+                [[0],-1]
+            ]
+        });
     })
 
     it("should property based test henceforth", () => {
@@ -304,11 +308,100 @@ describe.only("ltlEvaluate", () => {
 
 });
 
-describe.only("ltlEvaluateGenerator", () => {
+describe("ltlEvaluateGenerator", () => {
     it("should handle eventually", () => {
         let gen = LTL.ltlEvaluateGenerator<number>(LTL.Eventually(1, (x: number) => x === 2), 1);
         expect(gen.next(1)).toEqual({value: {requiresNext: true, validity: LTL.PT}, done: false});
         expect(gen.next(2)).toEqual({value: {requiresNext: false, validity: LTL.DT}, done: false});
         expect(gen.next(3)).toEqual({value: {requiresNext: false, validity: LTL.DT}, done: false});
+    });
+});
+
+const depthIdentifier = fc.createDepthIdentifier();
+const LTLFormulaArbitrary = fc.letrec((tie) => {
+  return {
+    term: fc.oneof(
+      { maxDepth: 2, depthIdentifier },
+      tie("true"),
+      tie("false"),
+      tie("not"),
+      tie("and"),
+      tie("or"),
+      tie("pred"),
+      tie("until"),
+      tie("release"),
+      tie("eventually"),
+      tie("henceforth")
+    ),
+    true: fc.constant(LTL.True()),
+    false: fc.constant(LTL.False()),
+    not: fc.record({ kind: fc.constant("not"), term: tie("term") }, {}),
+    and: fc.record(
+      {
+        kind: fc.constant("and"),
+        term1: tie("term"),
+        term2: tie("term")
+      },
+      {}
+    ),
+    or: fc.record(
+      {
+        kind: fc.constant("or"),
+        term1: tie("term"),
+        term2: tie("term")
+      },
+      {}
+    ),
+    pred: fc.record({ kind: fc.constant("pred"), pred: fc.nat().chain((num) => fc.constant((x: number) => x % num == 0)) }, {}),
+    until: fc.record(
+      {
+        kind: fc.constant("until"),
+        term: tie("term"),
+        condition: tie("term"),
+        steps: fc.nat()
+      },
+      {}
+    ),
+    release: fc.record(
+      {
+        kind: fc.constant("release"),
+        term: tie("term"),
+        condition: tie("term"),
+        steps: fc.nat()
+      },
+      {}
+    ),
+    eventually: fc.record(
+      { kind: fc.constant("eventually"), term: tie("term"), steps: fc.nat() },
+      {}
+    ),
+    henceforth: fc.record(
+      { kind: fc.constant("henceforth"), term: tie("term"), steps: fc.nat() },
+      {}
+    )
+  };
+});
+
+describe("ltlEvaluateGenerator and ltlEvaluate", () => {
+    it("should be equivalent", () => {
+        fc.assert(fc.property(LTLFormulaArbitrary.term, fc.array(fc.integer(), {minLength: 1}), (formula, data) => {
+            let gen = LTL.ltlEvaluateGenerator(formula as LTL.LTLFormula<number>, data[0]);
+            let next = gen.next();
+            let allNext = [next];
+            let allResults = [LTL.ltlEvaluate(data.slice(0,1), formula as LTL.LTLFormula<number>)];
+            for (let i = 1; i < data.length; i++) {
+                let result = LTL.ltlEvaluate( data.slice(0,i+1), formula as LTL.LTLFormula<number>);
+                allResults.push(result);
+                next = gen.next(data[i]);
+                allNext.push(next);
+                // console.log(allResults, JSON.stringify(allNext, null, 2));
+                expect(next.value.validity).toEqual(result);
+            }
+        }), {examples: [
+            [{"kind":"henceforth","term":{"kind":"henceforth","term":{"kind":"true"},"steps":0},"steps":0},[0]],
+            [{"kind":"eventually","term":{"kind":"not","term":{"kind":"true"}},"steps":2},[0,0]],
+            [{"kind":"until",steps: 1, "term":{"kind":"henceforth","term":{"kind":"true"},"steps":0},"condition":{"kind":"and","term1":{"kind":"true"},"term2":{"kind":"true"}}},[0]],
+            [{"kind":"or","term1":{"kind":"henceforth","term":{"kind":"true"},"steps":0},"term2":{"kind":"eventually","term":{"kind":"true"},"steps":0}},[0]]
+        ]});
     });
 });

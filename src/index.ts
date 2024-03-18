@@ -1,82 +1,83 @@
-type Predicate<A> = (state: A) => boolean;
+export type Predicate<A> = (state: A) => boolean;
 
-type LTLPredicate<A> = {
+export type LTLPredicate<A> = {
     kind: "pred",
     pred: (state: A) => boolean
 }
 
-type LTLAnd<A> = {
+export type LTLAnd<A> = {
     kind: "and",
     term1: LTLFormula<A>
     term2: LTLFormula<A>
 }
 
-type LTLOr<A> = {
+export type LTLOr<A> = {
     kind: "or",
     term1: LTLFormula<A>
     term2: LTLFormula<A>
 }
 
-type LTLNot<A> = {
+export type LTLNot<A> = {
     kind: "not",
     term: LTLFormula<A>
 }
 
-type LTLTrue = {
+export type LTLTrue = {
     kind: "true"
 }
 
-type LTLFalse = {
+export type LTLFalse = {
     kind: "false"
 }
+
 
 // type LTLNext<A> = {
 //     kind: "next",
 //     term: LTLFormula<A>
 // }
 
-type LTLEventually<A> = {
+export type LTLEventually<A> = {
     kind: "eventually",
     steps: number,
     term: LTLFormula<A>
 }
 
-type LTLHenceforth<A> = {
+export type LTLHenceforth<A> = {
     kind: "henceforth",
     steps: number,
     term: LTLFormula<A>
 }
 
-type LTLUntil<A> = {
+export type LTLUntil<A> = {
     kind: "until",
     steps: number,
     condition: LTLFormula<A>,
     term: LTLFormula<A>
 }
 
-type LTLRelease<A> = {
+export type LTLRelease<A> = {
     kind: "release",
     steps: number,
     condition: LTLFormula<A>,
     term: LTLFormula<A>
 }
 
-type LLTLRequiredNext<A> = {
+export type LLTLRequiredNext<A> = {
     kind: "req-next"
     term: LTLFormula<A>
 }
 
-type LLTLWeakNext<A> = {
+export type LLTLWeakNext<A> = {
     kind: "weak-next"
     term: LTLFormula<A>
 }
 
-type LLTLStrongNext<A> = {
+export type LLTLStrongNext<A> = {
     kind: "strong-next"
     term: LTLFormula<A>
 }
 
-type LTLFormula<A> = LTLPredicate<A> 
+export type LTLFormula<A> = LTLPredicate<A> 
     | LTLTrue
     | LTLFalse
     | LTLAnd<A>
@@ -175,6 +176,13 @@ export function Not<A>(term1: LTLFormula<A> | Predicate<A>): LTLNot<A> {
         term: t1,
     }
 }
+
+export function Implies<A>(term1: LTLFormula<A> | Predicate<A>, term2: LTLFormula<A> | Predicate<A>): LTLOr<A> {
+    let t1 = (typeof term1 !== "function") ? term1 : Predicate(term1);
+    let t2 = (typeof term2 !== "function") ? term2 : Predicate(term2);
+    return Or(Not(t1), t2);
+}
+
 const LTLTrue: LTLTrue = {
     kind: "true"
 }
@@ -188,6 +196,14 @@ const LTLFalse: LTLFalse = {
 
 export function False(): LTLFalse {
     return LTLFalse
+}
+
+export function isTrue(expr: LTLFormula<any>): expr is LTLTrue {
+    return expr === LTLTrue || expr.kind === "true";
+}
+
+export function isFalse(expr: LTLFormula<any>): expr is LTLFalse {
+    return expr === LTLFalse || expr.kind === "false";
 }
 
 export function Next<A>(term: LTLFormula<A> | Predicate<A>): LLTLRequiredNext<A> {
@@ -279,11 +295,11 @@ export function NegatedFormula<A>(expr: LTLEventually<A> | LTLHenceforth<A> | LT
 
 
 export function stepTrue<A>(expr: LTLTrue): LTLTrue {
-    return expr;
+    return LTLTrue;
 }
 
 export function stepFalse<A>(expr: LTLFalse): LTLFalse {
-    return expr;
+    return LTLFalse;
 }
 
 export function stepPred<A>(expr: LTLPredicate<A>, state: A): LTLFormula<A> {
@@ -297,25 +313,45 @@ export function stepPred<A>(expr: LTLPredicate<A>, state: A): LTLFormula<A> {
 export function stepAnd<A>(expr: LTLAnd<A>, state: A): LTLFormula<A> {
     let term1 = step(expr.term1, state);
     let term2 = step(expr.term2, state);
-    if (term1 === False()) {
+    if (isFalse(term1) || isFalse(term2)) {
         return False();
-    }else if (term1 === True() && term2 === True()) {
+    }else if (isTrue(term1) && isTrue(term2)) {
         return True();
-    } else if(term1 === True()) {
+    } else if(isTrue(term1)) {
         return term2;
+    } else if(isTrue(term2)) {
+        return term1;
+    }
+    if(isGuarded(term1) && isGuarded(term2)) {
+        return strongestNext(term1, term2)(And(term1.term, term2.term));
     }
     return And(term1, term2);
+}
+
+export function strongestNext<A>(term1: LTLFormula<A>, term2: LTLFormula<A>) {
+    if(term1.kind === "req-next" || term2.kind === "req-next") {
+        return RequiredNext;
+    }
+    if(term1.kind === "strong-next" || term2.kind === "strong-next") {
+        return StrongNext;
+    }
+    return WeakNext;
 }
 
 export function stepOr<A>(expr: LTLOr<A>, state: A): LTLFormula<A> {
     let term1 = step(expr.term1, state);
     let term2 = step(expr.term2, state);
-    if (step(expr.term1, state) === True()) {
+    if (isTrue(term1) || isTrue(term2)) {
         return True();
-    } else if (term1 === False() && term2 === False()) {
+    } else if (isFalse(term1) && isFalse(term2)) {
         return False();
-    } else if(term1 === False()) {
+    } else if(isFalse(term1)) {
         return term2;
+    } else if(isFalse(term2)) {
+        return term1;
+    }
+    if(isGuarded(term1) && isGuarded(term2)) {
+        return strongestNext(term1, term2)(Or(term1.term, term2.term));
     }
     return Or(term1, term2);
 }
@@ -325,9 +361,9 @@ export function stepNot<A>(expr: LTLNot<A>, state: A): LTLFormula<A> {
         let neg = NegatedFormula(expr.term);
         return step(neg, state);
     }
-    if (step(expr.term, state) === True()) {
+    if (isTrue(step(expr.term, state))) {
         return False();
-    }else if (step(expr.term, state) === False()) {
+    }else if (isFalse(step(expr.term, state))) {
         return True();
     }
     return Not(step(expr.term, state));
@@ -346,20 +382,27 @@ export function stepStrongNext<A>(expr: LLTLStrongNext<A>, state: A): LTLFormula
 }
 
 export function stepEventually<A>(expr: LTLEventually<A>, state: A): LTLFormula<A> {
+    if (expr.term.kind === "eventually") {
+        expr = Eventually(Math.max(expr.steps, expr.term.steps), expr.term.term);
+    }
     if (expr.steps === 0) {
         let term = step(expr.term, state);
-        if (term === True()) {
+        if (isTrue(term)) {
             return True();
-        } else if (term === False()) {
+        } else if (isFalse(term)) {
             return StrongNext(expr);
+        } else if(isGuarded(term)) {
+            return StrongNext(Eventually(expr.steps, expr.term));
         }
 
         return Or(term, StrongNext(expr));
     } else {
         let term = step(expr.term, state);
-        if (term === True()) {
+        if (isTrue(term)) {
             return term;
-        } else if (term === False()) {
+        } else if (isFalse(term)) {
+            return RequiredNext(Eventually(expr.steps - 1, expr.term));
+        } else if(isGuarded(term)) {
             return RequiredNext(Eventually(expr.steps - 1, expr.term));
         }
         return Or(term, RequiredNext(Eventually(expr.steps - 1, expr.term)));
@@ -367,8 +410,11 @@ export function stepEventually<A>(expr: LTLEventually<A>, state: A): LTLFormula<
 }
 
 export function stepHenceforth<A>(expr: LTLHenceforth<A>, state: A): LTLFormula<A> {
+    if (expr.term.kind === "henceforth") {
+        expr = Henceforth(Math.max(expr.steps, expr.term.steps), expr.term.term);
+    }
     let term = step(expr.term, state);
-    if (term === False()) {
+    if (isFalse(term)) {
         return False();
     }
     if (expr.steps === 0) {
@@ -458,23 +504,8 @@ export function ltlEvaluate<A>(states: A[], formula: LTLFormula<A>): Validity {
         }
         i++;
     }
-    if (expr === True()) {
-        return Definitely(true);
-    } else if (expr === False()) {
-        return Definitely(false);
-    }
 
-    if (expr.kind === "req-next") {
-        return Probably(false);
-    }
-    if (expr.kind === "weak-next") {
-        return Probably(true);
-    }
-    if (expr.kind === "strong-next") {
-        return Probably(false);
-    }
-
-    return Probably(false);
+    return evaluateValidity(expr);
 
 }
 
@@ -557,9 +588,8 @@ export function evaluateValidity(expr: LTLFormula<any>): Validity {
     throw new Error("The formula is not guarded or determined.");
 }
 
-export function * ltlEvaluateGenerator<A>(formula: LTLFormula<A>, state: A): Generator<PartialValidity, void, A> {
+export function * ltlEvaluateGenerator<A>(formula: LTLFormula<A>, state: A): Generator<PartialValidity, PartialValidity, A> {
     let expr = step(formula, state);
-    console.log(expr);
     let validity = PartialValidity(expr);
     state = yield validity;
     while(true) {
@@ -567,7 +597,6 @@ export function * ltlEvaluateGenerator<A>(formula: LTLFormula<A>, state: A): Gen
             yield PartialValidity(expr);
         } else if(isGuarded(expr)) {
         expr = step(expr.term, state);
-        console.log(expr);
         validity = PartialValidity(expr);
         state = yield validity;
         } else {
