@@ -361,10 +361,13 @@ export function stepNot<A>(expr: LTLNot<A>, state: A): LTLFormula<A> {
         let neg = NegatedFormula(expr.term);
         return step(neg, state);
     }
-    if (isTrue(step(expr.term, state))) {
+    let term = step(expr.term, state);
+    if (isTrue(term)) {
         return False();
-    }else if (isFalse(step(expr.term, state))) {
+    }else if (isFalse(term)) {
         return True();
+    } else if(isGuarded(term)) {
+        return strongestNext(term, term)(Not(term.term));
     }
     return Not(step(expr.term, state));
 }

@@ -321,7 +321,7 @@ const depthIdentifier = fc.createDepthIdentifier();
 const LTLFormulaArbitrary = fc.letrec((tie) => {
   return {
     term: fc.oneof(
-      { maxDepth: 2, depthIdentifier },
+      { maxDepth: 4, depthIdentifier },
       tie("true"),
       tie("false"),
       tie("not"),
@@ -401,7 +401,9 @@ describe("ltlEvaluateGenerator and ltlEvaluate", () => {
             [{"kind":"henceforth","term":{"kind":"henceforth","term":{"kind":"true"},"steps":0},"steps":0},[0]],
             [{"kind":"eventually","term":{"kind":"not","term":{"kind":"true"}},"steps":2},[0,0]],
             [{"kind":"until",steps: 1, "term":{"kind":"henceforth","term":{"kind":"true"},"steps":0},"condition":{"kind":"and","term1":{"kind":"true"},"term2":{"kind":"true"}}},[0]],
-            [{"kind":"or","term1":{"kind":"henceforth","term":{"kind":"true"},"steps":0},"term2":{"kind":"eventually","term":{"kind":"true"},"steps":0}},[0]]
-        ]});
+            [{"kind":"or","term1":{"kind":"henceforth","term":{"kind":"true"},"steps":0},"term2":{"kind":"eventually","term":{"kind":"true"},"steps":0}},[0]],
+            [{"kind":"not","term":{"kind":"and","term1":{"kind":"henceforth","term":{"kind":"true"},"steps":0},"term2":{"kind":"true"}}},[0]]
+        ],
+        numRuns: 100});
     });
 });
