@@ -1,5 +1,5 @@
 {
-  "name": "ltl",
+  "name": "@fast-check/ltl",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -18,5 +18,6 @@
     "typescript": "^5.4.2"
   },
   "dependencies": {
+    "immer": "^10.0.4"
   }
 }
