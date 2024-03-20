@@ -248,6 +248,7 @@ describe("step", () => {
     expect(LTL.step(term, 9)).toEqual(LTL.WeakNext(LTL.Release(0, term.condition, term.term)));
   });
 
+
   // it("should handle And on two temporal formulas", () => {
   //     let term = LTL.And(LTL.Eventually(1, (x: number) => x === 2), LTL.Henceforth(1, (x: number) => x === 2));
   //     expect(LTL.step(term, 3)).toEqual(LTL.And(LTL.RequiredNext(LTL.Eventually(0, term.term1)), LTL.Henceforth(0, term.term2)));
@@ -511,6 +512,39 @@ describe("ltlEvaluate", () => {
     );
     expect(truthline).toEqual([LTL.Probably(true), LTL.Probably(true), LTL.Probably(true), LTL.Definitely(true)]);
   });
+
+  it("should handle unchanged temporal formulas", () => {
+    let stateTrue = [1,1,1];
+    let stateFalse = [1,2,2];
+    let term = LTL.Unchanged<number>((a: number,b: number) => a == b);
+    expect(LTL.ltlEvaluate(stateTrue, term)).toEqual(LTL.DT);
+    expect(LTL.ltlEvaluate(stateFalse, term)).toEqual(LTL.DF);
+  })
+
+  it("should handle handle stuttering steps or advances", () => {
+    let stateTrue = [1,1,1,2,2,2,3,4,4,4];
+    let stateFalseDec = [1,1,1,2,2,2,3,4,5,4];
+    let stateFalseJump = [1,1,2,3,4,5,7];
+    let monotonic: LTL.LTLFormula<number> = LTL.Henceforth(1, LTL.Or(LTL.Unchanged((a,b) => a == b), LTL.Comparison((a, b) => a+1 == b)))
+    expect(LTL.ltlEvaluate(stateTrue, monotonic)).toEqual(LTL.PT);
+    expect(LTL.ltlEvaluate(stateFalseDec, monotonic)).toEqual(LTL.DF);
+    expect(LTL.ltlEvaluate(stateFalseJump, monotonic)).toEqual(LTL.DF);
+
+    // let stateStart = [1,1,1,2,2,2,3,4,4,4];
+    let stateStart = [9,9,9,9,9,9,9,2,2,3,3,4,4,4];
+    let stateStartFail = [9,9,9,9,9,9,9,2,2,3,3,4,5,4];
+    let until: LTL.LTLFormula<number> = LTL.Until(1, LTL.Predicate((x: number) => x == 9), monotonic);
+    expect(LTL.ltlEvaluate(stateStart, until)).toEqual(LTL.PT);
+    expect(LTL.ltlEvaluate(stateStartFail, until)).toEqual(LTL.DF);
+  });
+
+  it("should handle this weird case", () => {
+    let states = [0,0,0,0];
+    let term: LTL.LTLFormula<number> = {"kind":"release","term":{"kind":"henceforth","term":{"kind":"true"},"steps":1},"condition":{"kind":"false"},"steps":0};
+    // console.log(LTL.ltlEvaluate(states, term))
+    let term3: LTL.LTLFormula<number> = {"kind":"henceforth","term":{"kind":"until","term":{"kind":"weak-next","term":{"kind":"true"}},"condition":{"kind":"weak-next","term":{"kind":"true"}},"steps":1},"steps":0}
+    // console.log(LTL.ltlEvaluate(states, term3))
+  })
 });
 
 describe("ltlEvaluateGenerator", () => {
@@ -535,15 +569,17 @@ const LTLFormulaArbitrary = fc.letrec((tie) => {
       tie("not"),
       tie("and"),
       tie("or"),
+      tie("next"),
       tie("pred"),
+      tie("comparison"),
       tie("until"),
       tie("release"),
       tie("eventually"),
       tie("henceforth")
-    ),
+    ) as fc.Arbitrary<LTL.LTLFormula<number>>,
     true: fc.constant(LTL.True()),
     false: fc.constant(LTL.False()),
-    not: fc.record({ kind: fc.constant("not"), term: tie("term") }, {}),
+    not: fc.record({ kind: fc.constant("not"), term: tie("term") }, {}) as fc.Arbitrary<LTL.LTLNot<number>>,
     and: fc.record(
       {
         kind: fc.constant("and"),
@@ -551,7 +587,7 @@ const LTLFormulaArbitrary = fc.letrec((tie) => {
         term2: tie("term")
       },
       {}
-    ),
+    ) as fc.Arbitrary<LTL.LTLAnd<number>>,
     or: fc.record(
       {
         kind: fc.constant("or"),
@@ -559,8 +595,10 @@ const LTLFormulaArbitrary = fc.letrec((tie) => {
         term2: tie("term")
       },
       {}
-    ),
-    pred: fc.record({ kind: fc.constant("pred"), pred: fc.nat().chain((num) => fc.constant((x: number) => x % num == 0)) }, {}),
+    ) as fc.Arbitrary<LTL.LTLOr<number>>,
+    next: fc.record({ kind: fc.constant("weak-next"), term: tie("term") }, {}) as fc.Arbitrary<LTL.LLTLWeakNext<number>>,
+    pred: fc.record({ kind: fc.constant("pred"), pred: fc.oneof(fc.constant((x) => true),fc.constant((x)=> false), fc.integer({min: 1, max: 1000}).chain((num) => fc.constant((x: number) => x % num == 0))) }, {}) as fc.Arbitrary<LTL.LTLPredicate<number>>,
+    comparison: fc.record({ kind: fc.constant("comparison"), pred: fc.oneof(fc.constant((x,y)=>true), fc.constant((x,y) => false) ,fc.integer({min: 1, max: 1000}).chain((num) => fc.constant((x: number, y: number) => x % num == 0 && y % num == 0))) }, {}) as fc.Arbitrary<LTL.LTLComparison<number>>,
     until: fc.record(
       {
         kind: fc.constant("until"),
@@ -569,7 +607,7 @@ const LTLFormulaArbitrary = fc.letrec((tie) => {
         steps: fc.nat()
       },
       {}
-    ),
+    ) as fc.Arbitrary<LTL.LTLUntil<number>>,
     release: fc.record(
       {
         kind: fc.constant("release"),
@@ -578,9 +616,9 @@ const LTLFormulaArbitrary = fc.letrec((tie) => {
         steps: fc.nat()
       },
       {}
-    ),
-    eventually: fc.record({ kind: fc.constant("eventually"), term: tie("term"), steps: fc.nat() }, {}),
-    henceforth: fc.record({ kind: fc.constant("henceforth"), term: tie("term"), steps: fc.nat() }, {})
+    ) as fc.Arbitrary<LTL.LTLRelease<number>>,
+    eventually: fc.record({ kind: fc.constant("eventually"), term: tie("term"), steps: fc.nat() }, {}) as fc.Arbitrary<LTL.LTLEventually<number>>,
+    henceforth: fc.record({ kind: fc.constant("henceforth"), term: tie("term"), steps: fc.nat() }, {}) as fc.Arbitrary<LTL.LTLHenceforth<number>>
   };
 });
 
@@ -588,6 +626,7 @@ describe("ltlEvaluateGenerator and ltlEvaluate", () => {
   it("should be equivalent", () => {
     fc.assert(
       fc.property(LTLFormulaArbitrary.term, fc.array(fc.integer(), { minLength: 1 }), (formula, data) => {
+        fc.pre(data.length > LTL.requiredSteps(formula))
         let gen = LTL.ltlEvaluateGenerator(formula as LTL.LTLFormula<number>, data[0]);
         let next = gen.next();
         let allNext = [next];
@@ -597,8 +636,12 @@ describe("ltlEvaluateGenerator and ltlEvaluate", () => {
           allResults.push(result);
           next = gen.next(data[i]);
           allNext.push(next);
-          // console.log(allResults, JSON.stringify(allNext, null, 2));
           expect(next.value.validity).toEqual(result);
+        }
+
+        if(next.value.validity !== LTL.DF) {
+          // console.log("All Results", next.value)
+          expect(next.value.requiresNext).toBeFalsy();
         }
       }),
       {
@@ -628,9 +671,16 @@ describe("ltlEvaluateGenerator and ltlEvaluate", () => {
               term: { kind: "and", term1: { kind: "henceforth", term: { kind: "true" }, steps: 0 }, term2: { kind: "true" } }
             },
             [0]
-          ]
+          ],
+          [{"kind":"eventually","term":{"kind":"and","term1":{"kind":"true"},"term2":{"kind":"comparison","pred":(x, y) => x % 1 == 0 && y % 1 == 0}},"steps":2},[2,3,4,5,6]],
+          [{"kind":"release","term": {kind: "henceforth", steps: 5, term: {kind: "pred", pred: (x) => x % 3 === 0}}, "condition":{kind: "henceforth", steps: 10, term: {kind: "pred", pred: (x)=> x%4==0}},"steps":2},[3,3,3,3,12,4,4,4,4,4,4,4,4,4]],
+          [{"kind":"release","term":{"kind":"henceforth","term":{"kind":"true"},"steps":1},"condition":{"kind":"false"},"steps":0},[0,0,0]],
+          [{"kind":"until","condition":{"kind":"henceforth","term":{"kind":"true"},"steps":1},"term":{"kind":"false"},"steps":0},[0,0,0]],
+          [{"kind":"henceforth","term":{"kind":"until","term":{"kind":"weak-next","term":{"kind":"true"}},"condition":{"kind":"weak-next","term":{"kind":"true"}},"steps":1},"steps":0},[0,0,0,0]],
+          [{"kind":"release","term":{"kind":"or","term1":{"kind":"henceforth","term":{"kind":"weak-next","term":{"kind":"true"}},"steps":1},"term2":{"kind":"comparison","pred":(x, y) => true}},"condition":{"kind":"pred","pred":(x) => false},"steps":0},[0,0,0]],
+          [{"kind":"eventually","term":{"kind":"release","term":{"kind":"false"}, condition: {kind: "false"},"steps":1},"steps":0},[0,0]],
         ],
-        numRuns: 100
+        numRuns: 1000
       }
     );
   });

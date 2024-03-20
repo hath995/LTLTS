@@ -1,3 +1,4 @@
+
 export type Predicate<A> = (state: A) => boolean;
 
 export type LTLPredicate<A> = {
@@ -30,11 +31,6 @@ export type LTLFalse = {
   kind: "false";
 };
 
-// type LTLNext<A> = {
-//     kind: "next",
-//     term: LTLFormula<A>
-// }
-
 export type LTLEventually<A> = {
   kind: "eventually";
   steps: number;
@@ -61,6 +57,11 @@ export type LTLRelease<A> = {
   term: LTLFormula<A>;
 };
 
+export type LTLComparison<A> = {
+  kind: "comparison";
+  pred: (state: A, nextState: A) => boolean;
+};
+
 export type LLTLRequiredNext<A> = {
   kind: "req-next";
   term: LTLFormula<A>;
@@ -83,7 +84,7 @@ export type LTLFormula<A> =
   | LTLAnd<A>
   | LTLOr<A>
   | LTLNot<A>
-  // | LTLNext<A>
+  | LTLComparison<A>
   | LTLEventually<A>
   | LTLHenceforth<A>
   | LTLRelease<A>
@@ -204,8 +205,36 @@ export function isFalse(expr: LTLFormula<any>): expr is LTLFalse {
   return expr === LTLFalse || expr.kind === "false";
 }
 
+/**
+ * 
+ * @param term - formula or predicate to be evaluated in the next state
+ * @returns formula that must be true in the next state
+ */
 export function Next<A>(term: LTLFormula<A> | Predicate<A>): LLTLWeakNext<A> {
   return WeakNext(term);
+}
+/**
+ * 
+ * @param pred - function to test equality between two states
+ * @returns boolean value of the comparison
+ */
+export function Unchanged<A>(pred: (state: A, nextState: A) => boolean): LTLComparison<A> {
+  return {
+    kind: "comparison",
+    pred
+  }
+}
+
+/**
+ * 
+ * @param pred function to test comparison between two states
+ * @returns boolean value of the comparison
+ */
+export function Comparison<A>(pred: (state: A, nextState: A) => boolean): LTLComparison<A> {
+  return {
+    kind: "comparison",
+    pred
+  }
 }
 
 export function Eventually<A>(steps: number, term: LTLFormula<A> | Predicate<A>): LTLEventually<A> {
@@ -375,6 +404,42 @@ export function stepStrongNext<A>(expr: LLTLStrongNext<A>, state: A): LTLFormula
   return expr;
 }
 
+/**
+ * Decremented steps for the temporal operators that have evaluated not to false in the previous state
+ * @param expr - LTL formula
+ * @returns LTL formula with decremented steps
+ */
+function decrementSteps<A>(expr: LTLFormula<A>): LTLFormula<A> {
+  if(isTemporalOperator(expr) && expr.steps === 0) {
+    return expr;
+  }
+  switch (expr.kind) {
+    case "eventually":
+      return Eventually(expr.steps - 1, expr.term);
+    case "henceforth":
+      return Henceforth(expr.steps - 1, expr.term);
+    case "until":
+      return Until(expr.steps - 1, expr.condition, expr.term);
+    case "release":
+      return Release(expr.steps - 1, expr.condition, expr.term);
+    case "and":
+      return And(decrementSteps(expr.term1), decrementSteps(expr.term2));
+    case "or":
+      return Or(decrementSteps(expr.term1), decrementSteps(expr.term2));
+    case "not":
+      return Not(decrementSteps(expr.term));
+    case "req-next":
+      return RequiredNext(decrementSteps(expr.term));
+    case "weak-next":
+      return WeakNext(decrementSteps(expr.term));
+    case "strong-next":
+      return StrongNext(decrementSteps(expr.term));
+    default:
+      return expr;
+  }
+
+}
+
 export function stepEventually<A>(expr: LTLEventually<A>, state: A): LTLFormula<A> {
   if (expr.term.kind === "eventually") {
     expr = Eventually(Math.max(expr.steps, expr.term.steps), expr.term.term);
@@ -412,26 +477,49 @@ export function stepHenceforth<A>(expr: LTLHenceforth<A>, state: A): LTLFormula<
     return False();
   }
   if (expr.steps === 0) {
+    if(containsTemporalOperator(expr.term)) {
+      return step(And(expr.term, WeakNext(Henceforth(expr.steps, decrementSteps(expr.term)))), state);
+    }
     return step(And(expr.term, WeakNext(expr)), state);
   } else {
+    if(containsTemporalOperator(expr.term)) {
+      return step(And(expr.term, WeakNext(Henceforth(expr.steps - 1, decrementSteps(expr.term)))), state);
+    }
     return step(And(expr.term, RequiredNext(Henceforth(expr.steps - 1, expr.term))), state);
   }
 }
 
 export function stepUntil<A>(expr: LTLUntil<A>, state: A): LTLFormula<A> {
   if (expr.steps === 0) {
+    if(containsTemporalOperator(expr.condition)) {
+      return step(Or(expr.term, And(expr.condition, StrongNext(Until(expr.steps, decrementSteps(expr.condition), expr.term)))), state);
+    }
     return step(Or(expr.term, And(expr.condition, StrongNext(expr))), state);
   } else {
+    if(containsTemporalOperator(expr.condition)) {
+      return step(Or(expr.term, And(expr.condition, RequiredNext(Until(expr.steps - 1, decrementSteps(expr.condition), expr.term)))), state);
+    }
     return step(Or(expr.term, And(expr.condition, RequiredNext(Until(expr.steps - 1, expr.condition, expr.term)))), state);
   }
 }
 
 export function stepRelease<A>(expr: LTLRelease<A>, state: A): LTLFormula<A> {
   if (expr.steps === 0) {
+    if(containsTemporalOperator(expr.term)) {
+      //prevent infinite step recursion by reducing the number of steps
+      return step(And(expr.term, Or(expr.condition, WeakNext(Release(expr.steps, expr.condition, decrementSteps(expr.term))))), state);
+    }
     return step(And(expr.term, Or(expr.condition, WeakNext(expr))), state);
   } else {
+    if(containsTemporalOperator(expr.term)) {
+      return step(And(expr.term, Or(expr.condition, RequiredNext(Release(expr.steps - 1, expr.condition, decrementSteps(expr.term))))), state);
+    }
     return step(And(expr.term, Or(expr.condition, RequiredNext(Release(expr.steps - 1, expr.condition, expr.term)))), state);
   }
+}
+
+export function stepComparison<A>(expr: LTLComparison<A>, state: A): LTLFormula<A> {
+  return WeakNext(Predicate((nextState: A) => expr.pred(state, nextState)));
 }
 
 export function step<A>(expr: LTLFormula<A>, state: A): LTLFormula<A> {
@@ -448,6 +536,8 @@ export function step<A>(expr: LTLFormula<A>, state: A): LTLFormula<A> {
       return stepOr(expr, state);
     case "not":
       return stepNot(expr, state);
+    case "comparison":
+      return stepComparison(expr, state);
     case "req-next":
       return stepNext(expr, state);
     case "weak-next":
@@ -464,6 +554,20 @@ export function step<A>(expr: LTLFormula<A>, state: A): LTLFormula<A> {
       return stepRelease(expr, state);
   }
 }
+
+export function containsTemporalOperator<A>(expr: LTLFormula<A>): boolean {
+  if (isTemporalOperator(expr)) {
+    return true;
+  }
+  if (expr.kind === "and" || expr.kind === "or") {
+    return containsTemporalOperator(expr.term1) || containsTemporalOperator(expr.term2);
+  }
+  if (expr.kind === "not") {
+    return containsTemporalOperator(expr.term);
+  }
+  return false;
+}
+
 
 export function isTemporalOperator<A>(expr: LTLFormula<A>): expr is LTLEventually<A> | LTLHenceforth<A> | LTLUntil<A> | LTLRelease<A> {
   return expr.kind === "eventually" || expr.kind === "henceforth" || expr.kind === "until" || expr.kind === "release";
@@ -505,6 +609,42 @@ type PartialValidity = {
   validity: Validity;
 };
 
+/**
+ * 
+ * @param formula - LTL formula
+ * @returns //number of states required to evaluate the formula
+ */
+export function requiredSteps<A>(formula: LTLFormula<A>): number {
+  switch (formula.kind) {
+    case "eventually":
+      return formula.steps+1 + requiredSteps(formula.term);
+    case "henceforth":
+      return formula.steps+1 + requiredSteps(formula.term);
+    case "until":
+      return Math.max(formula.steps+1, requiredSteps(formula.term) + requiredSteps(formula.condition));
+    case "release":
+      return Math.max(formula.steps+1, requiredSteps(formula.term) + requiredSteps(formula.condition));
+    case "and":
+      return Math.max(requiredSteps(formula.term1), requiredSteps(formula.term2));
+    case "or":
+      return Math.max(requiredSteps(formula.term1), requiredSteps(formula.term2));
+    case "not":
+      return requiredSteps(formula.term);
+    case "req-next":
+      return 1 + requiredSteps(formula.term);
+    case "weak-next":
+      return requiredSteps(formula.term);
+    case "strong-next":
+      return requiredSteps(formula.term);
+    default:
+      return 0;
+  }
+}
+/**
+ * 
+ * @param formula - LTL formula
+ * @returns determines if the formula has evaluated enough states
+ */
 export function requiresNext(formula: LTLFormula<any>): boolean {
   switch (formula.kind) {
     case "req-next":
