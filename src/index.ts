@@ -1,4 +1,3 @@
-
 export type Predicate<A> = (state: A) => boolean;
 
 export type LTLPredicate<A> = {
@@ -206,7 +205,7 @@ export function isFalse(expr: LTLFormula<any>): expr is LTLFalse {
 }
 
 /**
- * 
+ *
  * @param term - formula or predicate to be evaluated in the next state
  * @returns formula that must be true in the next state
  */
@@ -214,7 +213,7 @@ export function Next<A>(term: LTLFormula<A> | Predicate<A>): LLTLWeakNext<A> {
   return WeakNext(term);
 }
 /**
- * 
+ *
  * @param pred - function to test equality between two states
  * @returns boolean value of the comparison
  */
@@ -222,11 +221,11 @@ export function Unchanged<A>(pred: (state: A, nextState: A) => boolean): LTLComp
   return {
     kind: "comparison",
     pred
-  }
+  };
 }
 
 /**
- * 
+ *
  * @param pred function to test comparison between two states
  * @returns boolean value of the comparison
  */
@@ -234,7 +233,7 @@ export function Comparison<A>(pred: (state: A, nextState: A) => boolean): LTLCom
   return {
     kind: "comparison",
     pred
-  }
+  };
 }
 
 export function Eventually<A>(steps: number, term: LTLFormula<A> | Predicate<A>): LTLEventually<A> {
@@ -410,7 +409,7 @@ export function stepStrongNext<A>(expr: LLTLStrongNext<A>, state: A): LTLFormula
  * @returns LTL formula with decremented steps
  */
 function decrementSteps<A>(expr: LTLFormula<A>): LTLFormula<A> {
-  if(isTemporalOperator(expr) && expr.steps === 0) {
+  if (isTemporalOperator(expr) && expr.steps === 0) {
     return expr;
   }
   switch (expr.kind) {
@@ -437,7 +436,6 @@ function decrementSteps<A>(expr: LTLFormula<A>): LTLFormula<A> {
     default:
       return expr;
   }
-
 }
 
 export function stepEventually<A>(expr: LTLEventually<A>, state: A): LTLFormula<A> {
@@ -477,12 +475,12 @@ export function stepHenceforth<A>(expr: LTLHenceforth<A>, state: A): LTLFormula<
     return False();
   }
   if (expr.steps === 0) {
-    if(containsTemporalOperator(expr.term)) {
+    if (containsTemporalOperator(expr.term)) {
       return step(And(expr.term, WeakNext(Henceforth(expr.steps, decrementSteps(expr.term)))), state);
     }
     return step(And(expr.term, WeakNext(expr)), state);
   } else {
-    if(containsTemporalOperator(expr.term)) {
+    if (containsTemporalOperator(expr.term)) {
       return step(And(expr.term, WeakNext(Henceforth(expr.steps - 1, decrementSteps(expr.term)))), state);
     }
     return step(And(expr.term, RequiredNext(Henceforth(expr.steps - 1, expr.term))), state);
@@ -491,13 +489,16 @@ export function stepHenceforth<A>(expr: LTLHenceforth<A>, state: A): LTLFormula<
 
 export function stepUntil<A>(expr: LTLUntil<A>, state: A): LTLFormula<A> {
   if (expr.steps === 0) {
-    if(containsTemporalOperator(expr.condition)) {
+    if (containsTemporalOperator(expr.condition)) {
       return step(Or(expr.term, And(expr.condition, StrongNext(Until(expr.steps, decrementSteps(expr.condition), expr.term)))), state);
     }
     return step(Or(expr.term, And(expr.condition, StrongNext(expr))), state);
   } else {
-    if(containsTemporalOperator(expr.condition)) {
-      return step(Or(expr.term, And(expr.condition, RequiredNext(Until(expr.steps - 1, decrementSteps(expr.condition), expr.term)))), state);
+    if (containsTemporalOperator(expr.condition)) {
+      return step(
+        Or(expr.term, And(expr.condition, RequiredNext(Until(expr.steps - 1, decrementSteps(expr.condition), expr.term)))),
+        state
+      );
     }
     return step(Or(expr.term, And(expr.condition, RequiredNext(Until(expr.steps - 1, expr.condition, expr.term)))), state);
   }
@@ -505,14 +506,17 @@ export function stepUntil<A>(expr: LTLUntil<A>, state: A): LTLFormula<A> {
 
 export function stepRelease<A>(expr: LTLRelease<A>, state: A): LTLFormula<A> {
   if (expr.steps === 0) {
-    if(containsTemporalOperator(expr.term)) {
+    if (containsTemporalOperator(expr.term)) {
       //prevent infinite step recursion by reducing the number of steps
       return step(And(expr.term, Or(expr.condition, WeakNext(Release(expr.steps, expr.condition, decrementSteps(expr.term))))), state);
     }
     return step(And(expr.term, Or(expr.condition, WeakNext(expr))), state);
   } else {
-    if(containsTemporalOperator(expr.term)) {
-      return step(And(expr.term, Or(expr.condition, RequiredNext(Release(expr.steps - 1, expr.condition, decrementSteps(expr.term))))), state);
+    if (containsTemporalOperator(expr.term)) {
+      return step(
+        And(expr.term, Or(expr.condition, RequiredNext(Release(expr.steps - 1, expr.condition, decrementSteps(expr.term))))),
+        state
+      );
     }
     return step(And(expr.term, Or(expr.condition, RequiredNext(Release(expr.steps - 1, expr.condition, expr.term)))), state);
   }
@@ -568,7 +572,6 @@ export function containsTemporalOperator<A>(expr: LTLFormula<A>): boolean {
   return false;
 }
 
-
 export function isTemporalOperator<A>(expr: LTLFormula<A>): expr is LTLEventually<A> | LTLHenceforth<A> | LTLUntil<A> | LTLRelease<A> {
   return expr.kind === "eventually" || expr.kind === "henceforth" || expr.kind === "until" || expr.kind === "release";
 }
@@ -610,20 +613,20 @@ type PartialValidity = {
 };
 
 /**
- * 
+ *
  * @param formula - LTL formula
  * @returns //number of states required to evaluate the formula
  */
 export function requiredSteps<A>(formula: LTLFormula<A>): number {
   switch (formula.kind) {
     case "eventually":
-      return formula.steps+1 + requiredSteps(formula.term);
+      return formula.steps + 1 + requiredSteps(formula.term);
     case "henceforth":
-      return formula.steps+1 + requiredSteps(formula.term);
+      return formula.steps + 1 + requiredSteps(formula.term);
     case "until":
-      return Math.max(formula.steps+1, requiredSteps(formula.term) + requiredSteps(formula.condition));
+      return Math.max(formula.steps + 1, requiredSteps(formula.term) + requiredSteps(formula.condition));
     case "release":
-      return Math.max(formula.steps+1, requiredSteps(formula.term) + requiredSteps(formula.condition));
+      return Math.max(formula.steps + 1, requiredSteps(formula.term) + requiredSteps(formula.condition));
     case "and":
       return Math.max(requiredSteps(formula.term1), requiredSteps(formula.term2));
     case "or":
@@ -641,7 +644,7 @@ export function requiredSteps<A>(formula: LTLFormula<A>): number {
   }
 }
 /**
- * 
+ *
  * @param formula - LTL formula
  * @returns determines if the formula has evaluated enough states
  */
