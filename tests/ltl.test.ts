@@ -1,5 +1,6 @@
 import * as LTL from "../src/index";
 import * as fc from "fast-check";
+import { temporalModelRun } from "../src/ltlModelRunner";
 
 describe("FVAnd", () => {
   test("DT and DT", () => {
@@ -680,6 +681,65 @@ describe("ltlEvaluateGenerator and ltlEvaluate", () => {
         ],
         numRuns: 100
       }
+    );
+  });
+});
+
+describe("temporalModelRunner", () => {
+  type Model = { num: number };
+  class List {
+    data: number[] = [];
+    push = (v: number) => this.data.push(v);
+    pop = () => this.data.pop()!;
+    size = () => this.data.length;
+  }
+
+  class PushCommand implements fc.Command<Model, List> {
+    constructor(readonly value: number) {}
+    check = (m: Readonly<Model>) => true;
+    run(m: Model, r: List): void {
+      r.push(this.value); // impact the system
+      m.num = r.size();
+      // ++m.num; // impact the model
+    }
+    toString = () => `push(${this.value})`;
+  }
+  class PopCommand implements fc.Command<Model, List> {
+    check(m: Readonly<Model>): boolean {
+      // should not call pop on empty list
+      return m.num > 0;
+    }
+    run(m: Model, r: List): void {
+      expect(typeof r.pop()).toEqual("number");
+      m.num = r.size();
+    }
+    toString = () => "pop";
+  }
+  class SizeCommand implements fc.Command<Model, List> {
+    check = (m: Readonly<Model>) => true;
+    run(m: Model, r: List): void {
+      expect(r.size()).toEqual(m.num);
+    }
+    toString = () => "size";
+  }
+
+  const allCommands = [fc.integer().map((v) => new PushCommand(v)), fc.constant(new PopCommand()), fc.constant(new SizeCommand())];
+
+  it("should work", () => {
+    fc.assert(
+      fc.property(fc.commands(allCommands, {}), (cmds) => {
+        const s = () => ({ model: { num: 0 }, real: new List() });
+        let sizeUpdatesBy1OrUnchanged: LTL.LTLFormula<Model> = LTL.Henceforth(
+          LTL.Or(
+            LTL.Or(
+              LTL.Unchanged((state, nextState) => state.num === nextState.num),
+              LTL.Comparison((state, nextState) => state.num + 1 === nextState.num)
+            ),
+            LTL.Comparison((state, nextState) => state.num - 1 === nextState.num)
+          )
+        );
+        temporalModelRun(s, cmds, sizeUpdatesBy1OrUnchanged);
+      })
     );
   });
 });
