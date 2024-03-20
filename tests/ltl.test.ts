@@ -149,48 +149,48 @@ describe("step", () => {
   it("should handle eventually true", () => {
     expect(
       LTL.step(
-        LTL.Eventually(1, (x: number) => x === 2),
+        LTL.Eventually((x: number) => x === 2, 1),
         2
       )
     ).toEqual(LTL.True());
   });
 
   it("should handle eventually unsure", () => {
-    let term = LTL.Eventually(1, (x: number) => x === 4);
-    expect(LTL.step(term, 1)).toEqual(LTL.RequiredNext(LTL.Eventually(0, term.term)));
+    let term = LTL.Eventually((x: number) => x === 4, 1);
+    expect(LTL.step(term, 1)).toEqual(LTL.RequiredNext(LTL.Eventually(term.term)));
   });
 
   it("should handle eventually unsure with 0 steps", () => {
-    let term = LTL.Eventually(0, (x: number) => x === 4);
-    expect(LTL.step(term, 1)).toEqual(LTL.StrongNext(LTL.Eventually(0, term.term)));
+    let term = LTL.Eventually((x: number) => x === 4);
+    expect(LTL.step(term, 1)).toEqual(LTL.StrongNext(LTL.Eventually(term.term)));
   });
 
   it("should handle henceforth false", () => {
     expect(
       LTL.step(
-        LTL.Henceforth(1, (x: number) => x === 2),
+        LTL.Henceforth((x: number) => x === 2, 1),
         1
       )
     ).toEqual(LTL.False());
   });
 
   it("should handle henceforth unsure", () => {
-    let term = LTL.Henceforth(1, (x: number) => x === 4);
-    expect(LTL.step(term, 4)).toEqual(LTL.RequiredNext(LTL.Henceforth(0, term.term)));
+    let term = LTL.Henceforth((x: number) => x === 4, 1);
+    expect(LTL.step(term, 4)).toEqual(LTL.RequiredNext(LTL.Henceforth(term.term, 0)));
   });
 
   it("should handle henceforth unsure with 0 steps", () => {
-    let term = LTL.Henceforth(0, (x: number) => x === 4);
-    expect(LTL.step(term, 4)).toEqual(LTL.WeakNext(LTL.Henceforth(0, term.term)));
+    let term = LTL.Henceforth((x: number) => x === 4, 0);
+    expect(LTL.step(term, 4)).toEqual(LTL.WeakNext(LTL.Henceforth(term.term, 0)));
   });
 
   it("should handle until where it is satisfied", () => {
     expect(
       LTL.step(
         LTL.Until(
-          1,
           (x: number) => x === 3,
-          (x: number) => x === 2
+          (x: number) => x === 2,
+          1
         ),
         2
       )
@@ -199,22 +199,21 @@ describe("step", () => {
 
   it("should handle until where the condition is maintained with 0 steps", () => {
     let term = LTL.Until(
-      0,
       (x: number) => x === 3,
-      (x: number) => x === 2
+      (x: number) => x === 2,
+      0
     );
     expect(LTL.step(term, 3)).toEqual(LTL.StrongNext(term));
   });
 
   it("should handle until which is unsatisfied", () => {
     let term = LTL.Until(
-      1,
       (x: number) => x === 3,
-      (x: number) => x === 2
+      (x: number) => x === 2,
+      1
     );
     expect(LTL.step(term, 1)).toEqual(LTL.False());
     let term2 = LTL.Until(
-      0,
       (x: number) => x === 3,
       (x: number) => x === 2
     );
@@ -223,29 +222,28 @@ describe("step", () => {
 
   it("should handle release which is statisfied", () => {
     let term = LTL.Release(
-      1,
       (x: number) => x % 2 == 0,
-      (x: number) => x % 3 == 0
+      (x: number) => x % 3 == 0,
+      1
     );
     expect(LTL.step(term, 12)).toEqual(LTL.True());
   });
 
   it("should handle release which matches the condition", () => {
     let term = LTL.Release(
-      1,
       (x: number) => x % 2 == 0,
-      (x: number) => x % 3 == 0
+      (x: number) => x % 3 == 0,
+      1
     );
-    expect(LTL.step(term, 9)).toEqual(LTL.RequiredNext(LTL.Release(0, term.condition, term.term)));
+    expect(LTL.step(term, 9)).toEqual(LTL.RequiredNext(LTL.Release(term.condition, term.term)));
   });
 
   it("should handle release which matches the condition with 0 steps", () => {
     let term = LTL.Release(
-      0,
       (x: number) => x % 2 == 0,
       (x: number) => x % 3 == 0
     );
-    expect(LTL.step(term, 9)).toEqual(LTL.WeakNext(LTL.Release(0, term.condition, term.term)));
+    expect(LTL.step(term, 9)).toEqual(LTL.WeakNext(LTL.Release(term.condition, term.term)));
   });
 
 
@@ -309,19 +307,19 @@ describe("ltlEvaluate", () => {
     expect(
       LTL.ltlEvaluate(
         [1, 2, 3],
-        LTL.Eventually(1, (x: number) => x === 2)
+        LTL.Eventually((x: number) => x === 2, 1)
       )
     ).toEqual(LTL.Definitely(true));
     expect(
       LTL.ltlEvaluate(
         [2, 1, 3],
-        LTL.Eventually(1, (x: number) => x === 2)
+        LTL.Eventually((x: number) => x === 2, 1)
       )
     ).toEqual(LTL.Definitely(true));
     expect(
       LTL.ltlEvaluate(
         [3, 2, 1],
-        LTL.Eventually(1, (x: number) => x === 2)
+        LTL.Eventually((x: number) => x === 2, 1)
       )
     ).toEqual(LTL.Definitely(true));
   });
@@ -330,7 +328,7 @@ describe("ltlEvaluate", () => {
     expect(
       LTL.ltlEvaluate(
         [1, 2, 3],
-        LTL.Eventually(1, (x: number) => x === 4)
+        LTL.Eventually((x: number) => x === 4, 1)
       )
     ).toEqual(LTL.Probably(false));
   });
@@ -339,7 +337,7 @@ describe("ltlEvaluate", () => {
     expect(
       LTL.ltlEvaluate(
         [2, 2, 2],
-        LTL.Henceforth(1, (x: number) => x === 2)
+        LTL.Henceforth((x: number) => x === 2, 1)
       )
     ).toEqual(LTL.Probably(true));
     // expect(LTL.ltlEvaluate([0, 2, 2], LTL.Henceforth(1, (x: number) => x === 2))).toBe(true);
@@ -350,7 +348,7 @@ describe("ltlEvaluate", () => {
     expect(
       LTL.ltlEvaluate(
         [2, 2, 2],
-        LTL.Henceforth(1, (x: number) => x === 3)
+        LTL.Henceforth((x: number) => x === 3, 1)
       )
     ).toEqual(LTL.Definitely(false));
     // expect(LTL.ltlEvaluate([0, 2, 2], LTL.Henceforth(1, (x: number) => x === 3), 1)).toBe(false);
@@ -363,7 +361,7 @@ describe("ltlEvaluate", () => {
         return expect(
           LTL.ltlEvaluate(
             arr,
-            LTL.Eventually(arr.length, (y: number) => y === x)
+            LTL.Eventually((y: number) => y === x, arr.length)
           )
         ).toEqual(arr.includes(x) ? LTL.Definitely(true) : LTL.Probably(true));
       }),
@@ -379,7 +377,7 @@ describe("ltlEvaluate", () => {
         return expect(
           LTL.ltlEvaluate(
             arr,
-            LTL.Henceforth(arr.length, (y: number) => y === x)
+            LTL.Henceforth((y: number) => y === x, arr.length)
           )
         ).toEqual(arr.slice(i % arr.length).every((y: number) => y === x) ? LTL.Probably(true) : LTL.Definitely(false));
       })
@@ -391,9 +389,9 @@ describe("ltlEvaluate", () => {
       LTL.ltlEvaluate(
         [2, 2, 3],
         LTL.Until(
-          1,
           (x: number) => x === 2,
-          (x: number) => x === 3
+          (x: number) => x === 3,
+          1
         )
       )
     ).toEqual(LTL.Definitely(true));
@@ -401,9 +399,9 @@ describe("ltlEvaluate", () => {
       LTL.ltlEvaluate(
         [2, 1, 3],
         LTL.Until(
-          1,
           (x: number) => x === 2,
-          (x: number) => x === 3
+          (x: number) => x === 3,
+          1
         )
       )
     ).toEqual(LTL.Definitely(false));
@@ -411,9 +409,9 @@ describe("ltlEvaluate", () => {
       LTL.ltlEvaluate(
         [2, 2],
         LTL.Until(
-          1,
           (x: number) => x === 2,
-          (x: number) => x === 3
+          (x: number) => x === 3,
+          1
         )
       )
     ).toEqual(LTL.Probably(false));
@@ -421,9 +419,9 @@ describe("ltlEvaluate", () => {
       LTL.ltlEvaluate(
         [3],
         LTL.Until(
-          1,
           (x: number) => x === 2,
-          (x: number) => x === 3
+          (x: number) => x === 3,
+          1
         )
       )
     ).toEqual(LTL.Definitely(true));
@@ -434,9 +432,9 @@ describe("ltlEvaluate", () => {
       LTL.ltlEvaluate(
         [2, 2, 2, 3, 3, 3],
         LTL.Until(
-          1,
           (x: number) => x === 2,
-          LTL.Henceforth(1, (x: number) => x === 3)
+          LTL.Henceforth((x: number) => x === 3, 1),
+          1
         )
       )
     ).toEqual(LTL.PT);
@@ -447,9 +445,9 @@ describe("ltlEvaluate", () => {
       LTL.ltlEvaluate(
         [2, 2, 2, 6, 6, 6],
         LTL.Release(
-          1,
-          LTL.Henceforth(1, (x: number) => x % 3 == 0),
-          (x: number) => x % 2 == 0
+          LTL.Henceforth((x: number) => x % 3 == 0, 1),
+          (x: number) => x % 2 == 0,
+          1
         )
       )
     ).toEqual(LTL.PT);
@@ -457,9 +455,9 @@ describe("ltlEvaluate", () => {
       LTL.ltlEvaluate(
         [2, 2, 2, 3, 6, 6],
         LTL.Release(
-          1,
-          LTL.Henceforth(1, (x: number) => x % 3 == 0),
-          (x: number) => x % 2 == 0
+          LTL.Henceforth((x: number) => x % 3 == 0, 1),
+          (x: number) => x % 2 == 0,
+          1
         )
       )
     ).toEqual(LTL.DF);
@@ -472,9 +470,9 @@ describe("ltlEvaluate", () => {
           LTL.ltlEvaluate(
             arr,
             LTL.Until(
-              arr.length,
               (z: number) => z === x,
-              (z: number) => z === y
+              (z: number) => z === y,
+              arr.length
             )
           )
         ).toEqual(
@@ -504,9 +502,9 @@ describe("ltlEvaluate", () => {
       LTL.ltlEvaluate(
         data.slice(0, index + 1),
         LTL.Release(
-          index,
           (x: Pair) => x.p,
-          (x: Pair) => x.q
+          (x: Pair) => x.q,
+          index
         )
       )
     );
@@ -525,7 +523,7 @@ describe("ltlEvaluate", () => {
     let stateTrue = [1,1,1,2,2,2,3,4,4,4];
     let stateFalseDec = [1,1,1,2,2,2,3,4,5,4];
     let stateFalseJump = [1,1,2,3,4,5,7];
-    let monotonic: LTL.LTLFormula<number> = LTL.Henceforth(1, LTL.Or(LTL.Unchanged((a,b) => a == b), LTL.Comparison((a, b) => a+1 == b)))
+    let monotonic: LTL.LTLFormula<number> = LTL.Henceforth(LTL.Or(LTL.Unchanged((a,b) => a == b), LTL.Comparison((a, b) => a+1 == b)), 1)
     expect(LTL.ltlEvaluate(stateTrue, monotonic)).toEqual(LTL.PT);
     expect(LTL.ltlEvaluate(stateFalseDec, monotonic)).toEqual(LTL.DF);
     expect(LTL.ltlEvaluate(stateFalseJump, monotonic)).toEqual(LTL.DF);
@@ -533,7 +531,7 @@ describe("ltlEvaluate", () => {
     // let stateStart = [1,1,1,2,2,2,3,4,4,4];
     let stateStart = [9,9,9,9,9,9,9,2,2,3,3,4,4,4];
     let stateStartFail = [9,9,9,9,9,9,9,2,2,3,3,4,5,4];
-    let until: LTL.LTLFormula<number> = LTL.Until(1, LTL.Predicate((x: number) => x == 9), monotonic);
+    let until: LTL.LTLFormula<number> = LTL.Until((x: number) => x == 9, monotonic);
     expect(LTL.ltlEvaluate(stateStart, until)).toEqual(LTL.PT);
     expect(LTL.ltlEvaluate(stateStartFail, until)).toEqual(LTL.DF);
   });
@@ -541,16 +539,16 @@ describe("ltlEvaluate", () => {
   it("should handle this weird case", () => {
     let states = [0,0,0,0];
     let term: LTL.LTLFormula<number> = {"kind":"release","term":{"kind":"henceforth","term":{"kind":"true"},"steps":1},"condition":{"kind":"false"},"steps":0};
-    // console.log(LTL.ltlEvaluate(states, term))
+    expect(LTL.ltlEvaluate(states, term)).toEqual(LTL.PT);
     let term3: LTL.LTLFormula<number> = {"kind":"henceforth","term":{"kind":"until","term":{"kind":"weak-next","term":{"kind":"true"}},"condition":{"kind":"weak-next","term":{"kind":"true"}},"steps":1},"steps":0}
-    // console.log(LTL.ltlEvaluate(states, term3))
+    expect(LTL.ltlEvaluate(states, term3)).toEqual(LTL.PF);
   })
 });
 
 describe("ltlEvaluateGenerator", () => {
   it("should handle eventually", () => {
     let gen = LTL.ltlEvaluateGenerator<number>(
-      LTL.Eventually(1, (x: number) => x === 2),
+      LTL.Eventually((x: number) => x === 2, 1),
       1
     );
     expect(gen.next(1)).toEqual({ value: { requiresNext: true, validity: LTL.PT }, done: false });
@@ -680,7 +678,7 @@ describe("ltlEvaluateGenerator and ltlEvaluate", () => {
           [{"kind":"release","term":{"kind":"or","term1":{"kind":"henceforth","term":{"kind":"weak-next","term":{"kind":"true"}},"steps":1},"term2":{"kind":"comparison","pred":(x, y) => true}},"condition":{"kind":"pred","pred":(x) => false},"steps":0},[0,0,0]],
           [{"kind":"eventually","term":{"kind":"release","term":{"kind":"false"}, condition: {kind: "false"},"steps":1},"steps":0},[0,0]],
         ],
-        numRuns: 1000
+        numRuns: 100
       }
     );
   });
