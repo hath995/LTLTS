@@ -687,37 +687,37 @@ describe("ltlEvaluateGenerator and ltlEvaluate", () => {
 
 describe("temporalModelRunner", () => {
   type Model = { num: number };
-  class List {
+  class Queue {
     data: number[] = [];
     push = (v: number) => this.data.push(v);
     pop = () => this.data.pop()!;
     size = () => this.data.length;
   }
 
-  class PushCommand implements fc.Command<Model, List> {
+  class PushCommand implements fc.Command<Model, Queue> {
     constructor(readonly value: number) {}
     check = (m: Readonly<Model>) => true;
-    run(m: Model, r: List): void {
+    run(m: Model, r: Queue): void {
       r.push(this.value); // impact the system
       m.num = r.size();
       // ++m.num; // impact the model
     }
     toString = () => `push(${this.value})`;
   }
-  class PopCommand implements fc.Command<Model, List> {
+  class PopCommand implements fc.Command<Model, Queue> {
     check(m: Readonly<Model>): boolean {
       // should not call pop on empty list
       return m.num > 0;
     }
-    run(m: Model, r: List): void {
+    run(m: Model, r: Queue): void {
       expect(typeof r.pop()).toEqual("number");
       m.num = r.size();
     }
     toString = () => "pop";
   }
-  class SizeCommand implements fc.Command<Model, List> {
+  class SizeCommand implements fc.Command<Model, Queue> {
     check = (m: Readonly<Model>) => true;
-    run(m: Model, r: List): void {
+    run(m: Model, r: Queue): void {
       expect(r.size()).toEqual(m.num);
     }
     toString = () => "size";
@@ -728,7 +728,7 @@ describe("temporalModelRunner", () => {
   it("should work", () => {
     fc.assert(
       fc.property(fc.commands(allCommands, {}), (cmds) => {
-        const s = () => ({ model: { num: 0 }, real: new List() });
+        const s = () => ({ model: { num: 0 }, real: new Queue() });
         let sizeUpdatesBy1OrUnchanged: LTL.LTLFormula<Model> = LTL.Henceforth(
           LTL.Or(
             LTL.Or(
