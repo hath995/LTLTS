@@ -93,7 +93,7 @@ npm i --save-dev \@fast-check/LTL
 
 ## Methods
 
-<a name="temporalModelRun">
+<a name="temporalModelRun"></a>
 ### temporalModelRun
 
 Runs a property-based test using a model and a real implemenation. Evaluates assertions and properties described with linear temporal logic against the model.
@@ -125,7 +125,7 @@ __Examples__
 
 ---------------------------------------
 
-<a name="temporalAsyncModelRun">
+<a name="temporalAsyncModelRun"></a>
 ### temporalAsyncModelRun
 
 Runs an asynchronous property-based test using a model and a real implementation. Evaluates assertions and properties described with linear temporal logic against the model.
@@ -234,7 +234,7 @@ __Examples__
 
 ---------------------------------------
 
-<a name="ltlEvaluate">
+<a name="ltlEvaluate"></a>
 ### ltlEvaluate
 
 __Examples__
@@ -243,7 +243,7 @@ __Examples__
 ```
 ---------------------------------------
 
-<a name="ltlEvaluateGenerator">
+<a name="ltlEvaluateGenerator"></a>
 ### ltlEvaluateGenerator
 
 Evaluates a linear temporal logic expression on a given state and provides a generator to continue evaluating the temporal logic as new states are generated.
@@ -255,7 +255,7 @@ __Examples__
 
 ---------------------------------------
 
-<a name="Predicate">
+<a name="Predicate"></a>
 ### Predicate
 
 DESCRIPTION
@@ -267,7 +267,7 @@ __Examples__
 
 ---------------------------------------
 
-<a name="Unchanged">
+<a name="Unchanged"></a>
 ### Unchanged
 
 DESCRIPTION
@@ -279,7 +279,7 @@ __Examples__
 
 ---------------------------------------
 
-<a name="Comparison">
+<a name="Comparison"></a>
 ### Comparison
 
 DESCRIPTION
@@ -291,7 +291,7 @@ __Examples__
 
 ---------------------------------------
 
-<a name="Eventually">
+<a name="Eventually"></a>
 ### Eventually
 
 DESCRIPTION
@@ -303,7 +303,7 @@ __Examples__
 
 ---------------------------------------
 
-<a name="Until">
+<a name="Until"></a>
 ### Until
 
 DESCRIPTION
@@ -315,7 +315,7 @@ __Examples__
 
 ---------------------------------------
 
-<a name="Release">
+<a name="Release"></a>
 ### Release
 
 DESCRIPTION
@@ -327,7 +327,7 @@ __Examples__
 
 ---------------------------------------
 
-<a name="Henceforth">
+<a name="Henceforth"></a>
 ### Henceforth
 
 DESCRIPTION
@@ -339,7 +339,7 @@ __Examples__
 
 ---------------------------------------
 
-<a name="Next">
+<a name="Next"></a>
 ### Next
 
 DESCRIPTION
@@ -351,7 +351,7 @@ __Examples__
 
 ---------------------------------------
 
-<a name="And">
+<a name="And"></a>
 ### And
 
 DESCRIPTION
@@ -363,7 +363,7 @@ __Examples__
 
 ---------------------------------------
 
-<a name="Or">
+<a name="Or"></a>
 ### Or
 
 DESCRIPTION
@@ -375,7 +375,7 @@ __Examples__
 
 ---------------------------------------
 
-<a name="Not">
+<a name="Not"></a>
 ### Not
 
 DESCRIPTION
@@ -387,7 +387,7 @@ __Examples__
 
 ---------------------------------------
 
-<a name="Implies">
+<a name="Implies"></a>
 ### Implies
 
 DESCRIPTION
@@ -399,7 +399,7 @@ __Examples__
 
 ---------------------------------------
 
-<a name="True">
+<a name="True"></a>
 ### True
 
 DESCRIPTION
@@ -411,7 +411,7 @@ __Examples__
 
 ---------------------------------------
 
-<a name="False">
+<a name="False"></a>
 ### False
 
 DESCRIPTION
