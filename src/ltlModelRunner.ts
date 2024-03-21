@@ -27,18 +27,23 @@ const genericModelRun = <Model extends object, Real, P, CheckAsync extends boole
       ltlState.next();
       for (const c of cmds) {
         state = then(state, () => {
+          let draft = immer.createDraft(model);
+          return then(Promise.resolve() as any, () => {
           // No need to check incoming state
           // as c.run "throws" in case of exception
-          let newState: P = state;
-          model = immer.produce(model, (ms) => {
-            newState = runCmd(c, ms as Model, real);
+          let newState: P  = runCmd(c, draft as Model, real);
+          return then(newState, () => {
+            let oldModel = model;
+            model = immer.finishDraft(draft) as Model;
+            let validity = ltlState.next(model);
+            if (validity.value !== undefined && validity.value.validity.kind === "definitely" && validity.value.validity.value === false) {
+              let oldModelS = JSON.stringify(oldModel, null, 2), newmodelS = JSON.stringify(model, null, 2);
+              throw new Error(`LTL property violated: ${oldModelS} \n\n ${newmodelS}`);
+            }
+            return newState;
           });
-          let validity = ltlState.next(model);
-          if (validity.value !== undefined && validity.value.validity.kind === "definitely" && validity.value.validity.value === false) {
-            throw new Error(`LTL property violated: ${validity.value}`);
-          }
-          return newState;
         });
+      });
       }
       return state;
     });
@@ -76,4 +81,38 @@ const genericModelRun = <Model extends object, Real, P, CheckAsync extends boole
     ltlProperty: LTL.LTLFormula<Model>
   ): void {
     internalModelRun(s, cmds, ltlProperty);
+  }
+  const isAsyncSetup = <Model, Real>(
+    s: ReturnType<ModelRunSetup<Model, Real>> | ReturnType<ModelRunAsyncSetup<Model, Real>>,
+  ): s is ReturnType<ModelRunAsyncSetup<Model, Real>> => {
+    return typeof (s as any).then === 'function';
+  };
+
+  const internalAsyncModelRun = async <Model extends object, Real, CheckAsync extends boolean>(
+    s: ModelRunSetup<Model, Real> | ModelRunAsyncSetup<Model, Real>,
+    cmds: Iterable<AsyncCommand<Model, Real, CheckAsync>>,
+    ltlProperty: LTL.LTLFormula<Model>,
+    defaultPromise = Promise.resolve()
+  ): Promise<void> => {
+    const then = (p: Promise<void>, c: () => Promise<void> | undefined) => p.then(c);
+    const setupProducer = {
+      then: (fun: SetupFun<Model, Real, Promise<void>>) => {
+        const out = s();
+        if (isAsyncSetup(out)) return out.then(fun);
+        else return fun(out);
+      },
+    };
+    const runAsync = async (cmd: AsyncCommand<Model, Real, CheckAsync>, m: Model, r: Real) => {
+      if (await cmd.check(m)) await cmd.run(m, r);
+    };
+    return await genericModelRun(setupProducer, cmds, defaultPromise, runAsync, then, ltlProperty);
+  };
+
+
+  export async function temporalAsyncModelRun<Model extends object, Real, CheckAsync extends boolean, InitialModel extends Model>(
+    s: ModelRunSetup<InitialModel, Real> | ModelRunAsyncSetup<InitialModel, Real>,
+    cmds: Iterable<AsyncCommand<Model, Real, CheckAsync>>,
+    ltlProperty: LTL.LTLFormula<Model>
+  ): Promise<void> {
+    await internalAsyncModelRun(s, cmds, ltlProperty);
   }

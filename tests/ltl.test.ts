@@ -1,6 +1,6 @@
 import * as LTL from "../src/index";
 import * as fc from "fast-check";
-import { temporalModelRun } from "../src/ltlModelRunner";
+import { temporalModelRun, temporalAsyncModelRun } from "../src/ltlModelRunner";
 
 describe("FVAnd", () => {
   test("DT and DT", () => {
@@ -742,4 +742,105 @@ describe("temporalModelRunner", () => {
       })
     );
   });
+});
+
+describe("temporalAsyncModelRunner", () => {
+  class Timer {
+    time: number;
+    running: boolean;
+    constructor() {
+      this.time = 0;
+      this.running = false;
+    }
+
+    async start() {
+      this.running = true;
+      return this.running;
+    }
+
+    async step() {
+      if (!this.running) {
+        return;
+      }
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          this.time++;
+          resolve(undefined);
+        }, 10);
+      });
+    }
+
+    async status() {
+      return this.time;
+    }
+    
+    async stop() {
+      this.running = false;
+      return this.running;
+    }
+  }
+
+  type TimerModel = { time: number; running: boolean };
+  class StartCommand implements fc.AsyncCommand<TimerModel, Timer, true> {
+    async check(m: Readonly<TimerModel>) {
+      return true;
+    }
+    async run(m: TimerModel, r: Timer) {
+      await r.start();
+      m.running = true;
+      expect(r.running).toBe(true);
+    }
+    toString = () => `start`;
+  }
+
+  class StepCommand implements fc.AsyncCommand<TimerModel, Timer, true> {
+    async check(m: Readonly<TimerModel>) {
+      return true;
+    }
+    async run(m: TimerModel, r: Timer) {
+      await r.step();
+      if (m.running) m.time++;
+      // m.time++;
+    }
+    toString = () => `step`;
+  }
+
+  class StatusCommand implements fc.AsyncCommand<TimerModel, Timer, true> {
+    async check(m: Readonly<TimerModel>) {
+      return true;
+    }
+    async run(m: TimerModel, r: Timer) {
+      expect(await r.status()).toEqual(m.time);
+    }
+    toString = () => `status`;
+  }
+
+  class StopCommand implements fc.AsyncCommand<TimerModel, Timer, true> {
+    async check(m: Readonly<TimerModel>) {
+      return true;
+    }
+    async run(m: TimerModel, r: Timer) {
+      await r.stop();
+      m.running = false;
+      expect(r.running).toBe(false);
+    }
+    toString = () => `stop`;
+  } 
+
+  it("should work", async () => {
+    await fc.assert(
+      fc.asyncProperty(fc.commands([fc.constant(new StartCommand()), fc.constant(new StepCommand()), fc.constant(new StatusCommand()), fc.constant(new StopCommand())], {}), async (cmds) => {
+        const s = async () => ({ model: { time: 0, running: false }, real: new Timer() });
+        let timeIncreasesBy1OrUnchanged: LTL.LTLFormula<TimerModel> = LTL.Henceforth(
+          LTL.And(
+         LTL.Or(
+            LTL.Unchanged((state, nextState) => state.time === nextState.time),
+            LTL.Comparison((state, nextState) => state.time + 1 === nextState.time)
+          ), 
+          LTL.Implies(LTL.Comparison((state, nextState) => state.time + 1 === nextState.time), (state) => state.running))
+        );
+        await temporalAsyncModelRun(s, cmds, timeIncreasesBy1OrUnchanged);
+      })
+    );
+  }, 60*1000);
 });
