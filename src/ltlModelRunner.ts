@@ -1,6 +1,5 @@
 import * as LTL from './index';
 import * as immer from 'immer';
-import fc from 'fast-check';
 import type { AsyncCommand, Command, ICommand, ModelRunAsyncSetup, ModelRunSetup } from "fast-check";
 
 type SetupState<Model, Real> = { model: Model; real: Real };
@@ -28,7 +27,6 @@ const genericModelRun = <Model extends object, Real, P, CheckAsync extends boole
       for (const c of cmds) {
         state = then(state, () => {
           let draft = immer.createDraft(model);
-          return then(Promise.resolve() as any, () => {
           // No need to check incoming state
           // as c.run "throws" in case of exception
           let newState: P  = runCmd(c, draft as Model, real);
@@ -43,7 +41,6 @@ const genericModelRun = <Model extends object, Real, P, CheckAsync extends boole
             return newState;
           });
         });
-      });
       }
       return state;
     });
