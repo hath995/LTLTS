@@ -552,9 +552,9 @@ describe("ltlEvaluateGenerator", () => {
       LTL.Eventually((x: number) => x === 2, 1),
       1
     );
-    expect(gen.next(1)).toEqual({ value: { requiresNext: true, validity: LTL.PT }, done: false });
-    expect(gen.next(2)).toEqual({ value: { requiresNext: false, validity: LTL.DT }, done: false });
-    expect(gen.next(3)).toEqual({ value: { requiresNext: false, validity: LTL.DT }, done: false });
+    expect(gen.next(1)).toEqual({ value: { requiresNext: true, tags: new Set(), validity: LTL.PT }, done: false });
+    expect(gen.next(2)).toEqual({ value: { requiresNext: false, tags: new Set(), validity: LTL.DT }, done: false });
+    expect(gen.next(3)).toEqual({ value: { requiresNext: false, tags: new Set(), validity: LTL.DT }, done: false });
   });
 });
 
@@ -845,18 +845,18 @@ describe("temporalAsyncModelRunner", () => {
   }, 60*1000);
 });
 
-describe.only("Tag", () => {
-  it("should tage false", () => {
+describe("Tag", () => {
+  it("should tag false", () => {
     let tagged = LTL.Tag("test", LTL.False());
     let res = LTL.ltlEvaluateGenerator(tagged, 2);
-    expect(res.next().value.tags).toEqual(["test"]);
+    expect(res.next().value.tags).toEqual(new Set(["test"]));
   });
 
   it("should tag predicate", () => {
     let pred = LTL.Predicate((x: number) => x === 1);
     let tagged = LTL.Tag("test", pred);
     let res = LTL.ltlEvaluateGenerator(tagged, 2);
-    expect(res.next().value.tags).toEqual(["test"]);
+    expect(res.next().value.tags).toEqual(new Set(["test"]));
   })
 
   it("should tag comparison", () => {
@@ -867,82 +867,82 @@ describe.only("Tag", () => {
     console.log(partial);
     let res2 = res.next(3);
     console.log(res2)
-    expect(res2.value.tags).toEqual(["test"]);
+    expect(res2.value.tags).toEqual(new Set(["test"]));
   });
 
   it("should tag not", () => {
     let not = LTL.Not(LTL.True());
     let tagged = LTL.Tag("test", not);
     let res = LTL.ltlEvaluateGenerator(tagged, 2);
-    expect(res.next().value.tags).toEqual(["test"]);
+    expect(res.next().value.tags).toEqual(new Set(["test"]));
   });
 
   it("should tag a not with a true predicate", () => {
     let not = LTL.Not(LTL.Tag("test", LTL.Predicate((x: number) => x === 1)));
     let res = LTL.ltlEvaluateGenerator(not, 1);
-    expect(res.next().value.tags).toEqual(["test"]);
+    expect(res.next().value.tags).toEqual(new Set(["test"]));
   });
 
   it("should propagate tags in nested nots", () => {
     let not = LTL.Not(LTL.Not(LTL.Not(LTL.Tag("test", LTL.Predicate((x: number) => x === 1)))));
     let res = LTL.ltlEvaluateGenerator(not, 1);
-    expect(res.next().value.tags).toEqual(["test"]);
+    expect(res.next().value.tags).toEqual(new Set(["test"]));
   });
 
   it("should propagate tags in ands", () => {
     let and = LTL.And(LTL.Tag("one", LTL.Predicate((x: number) => x === 1)), LTL.Tag("two", LTL.Predicate((x: number) => x === 2)));
     let res = LTL.ltlEvaluateGenerator(and, 1);
-    expect(res.next().value.tags).toEqual(["two"]);
+    expect(res.next().value.tags).toEqual(new Set(["two"]));
 
     let res2 = LTL.ltlEvaluateGenerator(and, 2);
-    expect(res2.next().value.tags).toEqual(["one"]);
+    expect(res2.next().value.tags).toEqual(new Set(["one"]));
 
     let res3 = LTL.ltlEvaluateGenerator(and, 3);
-    expect(res3.next().value.tags).toEqual(["one","two"]);
+    expect(res3.next().value.tags).toEqual(new Set(["one","two"]));
     
     let topAnd = LTL.Tag("top", and);
     let res4 = LTL.ltlEvaluateGenerator(topAnd, 2);
-    expect(res4.next().value.tags).toEqual(["top","one"]);
+    expect(res4.next().value.tags).toEqual(new Set(["top","one"]));
   });
 
   it("should propagate tags in ors", () => {
     let or = LTL.Or(LTL.Tag("one", LTL.Predicate((x: number) => x === 1)), LTL.Tag("two", LTL.Predicate((x: number) => x === 2)));
     let res = LTL.ltlEvaluateGenerator(or, 1);
-    expect(res.next().value.tags).toEqual([]);
+    expect(res.next().value.tags).toEqual(new Set([]));
 
     let res2 = LTL.ltlEvaluateGenerator(or, 2);
-    expect(res2.next().value.tags).toEqual([]);
+    expect(res2.next().value.tags).toEqual(new Set([]));
 
     let res3 = LTL.ltlEvaluateGenerator(or, 3);
-    expect(res3.next().value.tags).toEqual(["one","two"]);
+    expect(res3.next().value.tags).toEqual(new Set(["one","two"]));
 
     let topOr = LTL.Tag("top", or);
     let res4 = LTL.ltlEvaluateGenerator(topOr, 3);
-    expect(res4.next().value.tags).toEqual(["top","one","two"]);
+    expect(res4.next().value.tags).toEqual(new Set(["top","one","two"]));
   });
 
   it("should propagate tags in until", () => {
     let until = LTL.Tag("OnethenTwo", LTL.Until(LTL.Tag("isOne", LTL.Predicate((x: number) => x === 1)), LTL.Tag("isTwo", LTL.Predicate((x: number) => x === 2))));
     let res = LTL.ltlEvaluateGenerator(until, 1);
-    expect(res.next().value.tags).toEqual(["isTwo"]);
+    expect(res.next().value.tags).toEqual(new Set(["OnethenTwo","isTwo"]));
 
     let res2 = LTL.ltlEvaluateGenerator(until, 2);
-    expect(res2.next().value.tags).toEqual([]);
+    expect(res2.next().value.tags).toEqual(new Set([]));
 
     let res3 = LTL.ltlEvaluateGenerator(until, 3);
-    expect(res3.next().value.tags).toEqual(["OnethenTwo","isTwo","isOne"]);
+    expect(res3.next().value.tags).toEqual(new Set(["OnethenTwo","isTwo","isOne"]));
   });
 
   it("should propagate tags in henceforth", () => {
     let henceforth = LTL.Tag("AlwaysOne", LTL.Henceforth(LTL.Tag("isOne", LTL.Predicate((x: number) => x === 1)), 1));
     let henceforthZero = LTL.Tag("AlwaysOne", LTL.Henceforth(LTL.Tag("isOne", LTL.Predicate((x: number) => x === 1)), 0));
     let res = LTL.ltlEvaluateGenerator(henceforth, 1);
-    expect(res.next().value.tags).toEqual([]);
+    expect(res.next().value.tags).toEqual(new Set(["AlwaysOne"]));
     let res3 = LTL.ltlEvaluateGenerator(henceforthZero, 1);
-    expect(res3.next().value.tags).toEqual([]);
+    expect(res3.next().value.tags).toEqual(new Set(["AlwaysOne"]));
 
     let res2 = LTL.ltlEvaluateGenerator(henceforth, 2);
-    expect(res2.next().value.tags).toEqual(["AlwaysOne","isOne"]);
+    expect(res2.next().value.tags).toEqual(new Set(["AlwaysOne","isOne"]));
 
   });
 
@@ -955,11 +955,26 @@ describe.only("Tag", () => {
         res.next();
         for(let i = 1; i < data.length; i++) {
           let next = res.next(data[i]);
-          if(next.value.validity === LTL.DF) {
-            expect(next.value.tags).toEqual(["test"]);
+          // if(next.value.validity === LTL.DF) {
+          if(next.value.validity.value === false) {
+            // console.log(JSON.stringify(tagged, null, 2))
+            // console.log("RECEIVED", next.value.tags)
+            expect(next.value.tags).toEqual(new Set(["test"]));
           }
         }
       })
-    );
+    , {
+        examples: [
+          [{"kind":"and","term1":{"kind":"comparison","pred":(x, y) => x % 0 == 0 && y % 0 == 0},"term2":{"kind":"and","term1":{"kind":"true"},"term2":{"kind":"true"}}},[0,0]],
+          [{"kind":"and","term1":{"kind":"weak-next","term":{"kind":"false"}},"term2":{"kind":"weak-next","term":{"kind":"true"}}},[0,0]],
+          [{"kind":"not","term":{"kind":"comparison","pred":() => true}},[0,0]],
+          [{"kind":"or","term1":{"kind":"comparison","pred":(x, y) => x % 0 == 0 && y % 0 == 0},"term2":{"kind":"not","term":{"kind":"true"}}},[0,854563543]],
+          [{"kind":"not","term":{"kind":"release","term":{"kind":"true"},"condition":{"kind":"true"},"steps":0}},[0,0]],
+          [{"kind":"release","term":{"kind":"false"},"condition":{"kind":"false"},"steps":0},[0,0]],
+          [{"kind":"eventually","term":{"kind":"false"},"steps":0}, [0,0]],
+          [{"kind":"eventually","term":{"kind":"henceforth","term":{"kind":"true"},"steps":0},"steps":0},[0,0,0]]
+        ],
+        numRuns: 100
+      });
   });
 });
