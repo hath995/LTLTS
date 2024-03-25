@@ -35,8 +35,9 @@ const genericModelRun = <Model extends object, Real, P, CheckAsync extends boole
             model = immer.finishDraft(draft) as Model;
             let validity = ltlState.next(model);
             if (validity.value !== undefined && validity.value.validity.kind === "definitely" && validity.value.validity.value === false) {
+              console.error(validity.value.tags)
               let oldModelS = JSON.stringify(oldModel, null, 2), newmodelS = JSON.stringify(model, null, 2);
-              throw new Error(`LTL property violated: ${oldModelS} \n\n ${newmodelS}`);
+              throw new Error(`LTL property violated: ${Array.from(validity.value.tags)} ${oldModelS} \n\n ${newmodelS}`);
             }
             return newState;
           });

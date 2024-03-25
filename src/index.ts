@@ -377,9 +377,11 @@ export function stepAnd<A>(expr: LTLAnd<A>, state: A): LTLFormula<A> {
   }
   if (isGuarded(term1) && isGuarded(term2)) {
     let ownTags = collectTags(expr);
-    return strongestNext(term1, term2)(applyTags(And(term1.term, term2.term), ownTags));
+    let term1tags = collectTags(term1);
+    let term2tags = collectTags(term2);
+    return strongestNext(term1, term2)(applyTags(And(applyTags(term1.term, term1tags), applyTags(term2.term, term2tags)), ownTags));
   }
-  return And(term1, term2);
+  throw new Error("GOT TO AND BAD SITUATION")
 }
 
 export function strongestNext<A>(term1: LTLFormula<A>, term2: LTLFormula<A>) {
@@ -408,10 +410,13 @@ export function stepOr<A>(expr: LTLOr<A>, state: A): LTLFormula<A> {
     return applyTags(term1, tags);
   }
   if (isGuarded(term1) && isGuarded(term2)) {
-    let tags = new Set([...collectTags(expr), ...collectTags(term1), ...collectTags(term2)]);
-    return strongestNext(term1, term2)(applyTags(Or(term1.term, term2.term), tags));
+    // let tags = new Set([...collectTags(expr), ...collectTags(term1), ...collectTags(term2)]);
+    let ownTags = collectTags(expr);
+    let term1tags = collectTags(term1);
+    let term2tags = collectTags(term2);
+    return strongestNext(term1, term2)(applyTags(Or(applyTags(term1.term, term1tags), applyTags(term2.term, term2tags)), ownTags));
   }
-  return Or(term1, term2);
+  throw new Error("GOT TO OR BAD SITUATION")
 }
 
 export function stepNot<A>(expr: LTLNot<A>, state: A): LTLFormula<A> {
@@ -495,7 +500,6 @@ export function stepEventually<A>(expr: LTLEventually<A>, state: A): LTLFormula<
     } else if (isGuarded(term)) {
       return applyTags(StrongNext(Eventually(expr.term, expr.steps)), ownTags);
     }
-
     return Or(term, StrongNext(expr));
   } else {
     let term = step(expr.term, state);
@@ -733,7 +737,6 @@ export function PartialValidity(formula: LTLFormula<any>): PartialValidity {
       tags: isFalse(formula) ? collectTags(formula) : new Set()
     };
   } else {
-    // console.log(JSON.stringify(formula, null, 2))
     return {
       requiresNext: requiresNext(formula),
       validity: evaluateValidity(formula),
@@ -778,7 +781,7 @@ export function evaluateValidity(expr: LTLFormula<any>): Validity {
 export function* ltlEvaluateGenerator<A>(formula: LTLFormula<A>, state: A): Generator<PartialValidity, PartialValidity, A> {
   let ownTags = collectTags(formula);
   let expr = step(applyTags(formula, ownTags), state);
-  // console.log("START", expr);
+  // console.log("START", JSON.stringify(expr, null, 2));
   let validity = PartialValidity(expr);
   state = yield validity;
   while (true) {

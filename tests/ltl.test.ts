@@ -833,19 +833,40 @@ describe("temporalAsyncModelRunner", () => {
         const s = async () => ({ model: { time: 0, running: false }, real: new Timer() });
         let timeIncreasesBy1OrUnchanged: LTL.LTLFormula<TimerModel> = LTL.Henceforth(
           LTL.And(
-         LTL.Or(
+         LTL.Tag("MonotonicTime", LTL.Or(
             LTL.Unchanged((state, nextState) => state.time === nextState.time),
             LTL.Comparison((state, nextState) => state.time + 1 === nextState.time)
-          ), 
-          LTL.Implies(LTL.Comparison((state, nextState) => state.time + 1 === nextState.time), (state) => state.running))
+          )), 
+          LTL.Tag("RunningRequired", LTL.Implies(LTL.Comparison((state, nextState) => state.time + 1 === nextState.time), (state) => state.running)))
         );
         await temporalAsyncModelRun(s, cmds, timeIncreasesBy1OrUnchanged);
-      })
+      }),
+      {examples:[[[new StepCommand()]]]}
     );
   }, 60*1000);
 });
 
 describe("Tag", () => {
+  it("should report all tagged errors", () => {
+    type TimerModel = { time: number; running: boolean };
+    let modelState = {
+      time: 0,
+      running: false
+    }
+    let bothViolated: LTL.LTLFormula<TimerModel> = LTL.Henceforth(
+      LTL.And(
+        LTL.Tag("MonotonicTime", LTL.Or(
+          LTL.Unchanged((state, nextState) => state.time === nextState.time),
+          LTL.Comparison((state, nextState) => state.time - 1 === nextState.time)
+        )), 
+        LTL.Tag("RunningRequired", LTL.Implies(LTL.Comparison((state, nextState) => state.time + 1 === nextState.time), (state) => state.running)))
+    );
+    let gen = LTL.ltlEvaluateGenerator(bothViolated, modelState);
+    gen.next()
+    let result = gen.next({time: 1, running: false})
+    expect(result.value.tags).toEqual(new Set(["MonotonicTime", "RunningRequired"]))
+
+  })
   it("should tag false", () => {
     let tagged = LTL.Tag("test", LTL.False());
     let res = LTL.ltlEvaluateGenerator(tagged, 2);
@@ -864,9 +885,7 @@ describe("Tag", () => {
     let tagged = LTL.Tag("test", comp);
     let res = LTL.ltlEvaluateGenerator<number>(tagged, 2);
     let partial = res.next();
-    console.log(partial);
     let res2 = res.next(3);
-    console.log(res2)
     expect(res2.value.tags).toEqual(new Set(["test"]));
   });
 
