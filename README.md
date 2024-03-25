@@ -54,11 +54,12 @@ npm i --save-dev \@fast-check/LTL
         const s = () => ({ model: { num: 0 }, real: new Queue() });
         let sizeUpdatesByOneOrUnchanged: LTL.LTLFormula<Model> = LTL.Henceforth(
           LTL.Or(
-            LTL.Or(
+            LTL.Tag("monotonicTime", LTL.Or(
               LTL.Unchanged((state, nextState) => state.num === nextState.num),
               LTL.Comparison((state, nextState) => state.num + 1 === nextState.num)
-            ),
-            LTL.Comparison((state, nextState) => state.num - 1 === nextState.num)
+            )),
+            LTL.Tag("isRunning",
+                LTL.Comparison((state, nextState) => state.num - 1 === nextState.num))
           )
         );
         temporalModelRun(s, cmds, sizeUpdatesByOneOrUnchanged);
