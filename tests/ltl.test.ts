@@ -596,8 +596,8 @@ const LTLFormulaArbitrary = fc.letrec((tie) => {
       {}
     ) as fc.Arbitrary<LTL.LTLOr<number>>,
     next: fc.record({ kind: fc.constant("weak-next"), term: tie("term") }, {}) as fc.Arbitrary<LTL.LLTLWeakNext<number>>,
-    pred: fc.record({ kind: fc.constant("pred"), pred: fc.oneof(fc.constant((x) => true),fc.constant((x)=> false), fc.integer({min: 1, max: 1000}).chain((num) => fc.constant((x: number) => x % num == 0))) }, {}) as fc.Arbitrary<LTL.LTLPredicate<number>>,
-    comparison: fc.record({ kind: fc.constant("comparison"), pred: fc.oneof(fc.constant((x,y)=>true), fc.constant((x,y) => false) ,fc.integer({min: 1, max: 1000}).chain((num) => fc.constant((x: number, y: number) => x % num == 0 && y % num == 0))) }, {}) as fc.Arbitrary<LTL.LTLComparison<number>>,
+    pred: fc.record({ kind: fc.constant("pred"), pred: fc.oneof(fc.constant(() => true),fc.constant(()=> false), fc.integer({min: 1, max: 1000}).chain((num) => fc.constant((x: number) => x % num == 0))) }, {}) as fc.Arbitrary<LTL.LTLPredicate<number>>,
+    comparison: fc.record({ kind: fc.constant("comparison"), pred: fc.oneof(fc.constant(()=>true), fc.constant(() => false) ,fc.integer({min: 1, max: 1000}).chain((num) => fc.constant((x: number, y: number) => x % num == 0 && y % num == 0))) }, {}) as fc.Arbitrary<LTL.LTLComparison<number>>,
     until: fc.record(
       {
         kind: fc.constant("until"),
