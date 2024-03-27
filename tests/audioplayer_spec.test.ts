@@ -120,10 +120,11 @@ class WaitCommand implements fc.AsyncCommand<AudioPlayerModel, AudioPlayerInstan
         return true
     }
     async run(m: AudioPlayerModel, r: AudioPlayerInstance): Promise<void> {
-        // m.loaded = await r.page.evaluate(async () => {
-        //   if (document.readyState === "complete") {
-        //     return true;
-        //   }
+        m.loaded = await r.page.evaluate(() => {
+          if (document.readyState === "complete") {
+            return true;
+          }
+          return false;
         //   return new Promise<boolean>((accept) => {
         //     document.addEventListener("readystatechange", () => {
         //       if (document.readyState === "complete") {
@@ -131,7 +132,7 @@ class WaitCommand implements fc.AsyncCommand<AudioPlayerModel, AudioPlayerInstan
         //       }
         //     });
         //   });
-        // });
+        });
         await wait(2000);
         m.timeInSeconds = await r.page.evaluate(() => {
           function timeInSeconds(s: string): number {
@@ -153,23 +154,24 @@ class WaitCommand implements fc.AsyncCommand<AudioPlayerModel, AudioPlayerInstan
 }
 
 
-describe.only('AudioPlayer', () => {
+describe('AudioPlayer', () => {
     afterEach(async () => {
       await waitForQuitAllDrivers();
     });
     it("should follow the LTL Specification", async () => {
-        let playing = LTL.Predicate((m: AudioPlayerModel) => m.buttonText === "Pause");
-        let paused = LTL.Predicate((m: AudioPlayerModel) => m.buttonText === "Play");
+        let playing = (m: AudioPlayerModel) => m.buttonText === "Pause";
+        let paused = (m: AudioPlayerModel) => m.buttonText === "Play";
 
-        var spec: LTL.LTLFormula<AudioPlayerModel> = LTL.And(
-            LTL.Tag("paused", paused),
-            LTL.Henceforth(LTL.Or(
-                LTL.Tag("play", LTL.And(paused, LTL.And(LTL.Next(playing), LTL.Unchanged((m: AudioPlayerModel, n: AudioPlayerModel) => m.timeInSeconds == n.timeInSeconds)))),
-                LTL.Or( LTL.Tag("paused", LTL.And(playing, LTL.And(LTL.Next(paused), LTL.Unchanged((m: AudioPlayerModel, n: AudioPlayerModel) => m.timeInSeconds == n.timeInSeconds)))),
-                LTL.Or(LTL.Tag("StillPaused", LTL.And(paused, LTL.Unchanged((m: AudioPlayerModel, n: AudioPlayerModel) => m.timeInSeconds == n.timeInSeconds))),
-                LTL.Tag("tick", LTL.And(playing, LTL.And(LTL.Next(playing), LTL.Unchanged((m: AudioPlayerModel, n: AudioPlayerModel) => m.timeInSeconds <= n.timeInSeconds)))))
-            ))
-        , 1));
+        var spec: LTL.LTLFormula<AudioPlayerModel> = LTL.Henceforth(LTL.And(
+                LTL.Tag("buttonText", LTL.Implies(m => m.loaded, m => m.buttonText === "Play" || m.buttonText === "Pause")), 
+                LTL.Implies(m => m.loaded, LTL.Or(
+                LTL.Tag("play", LTL.And(paused, LTL.Next(playing), LTL.Unchanged("timeInSeconds"))),
+                LTL.Tag("paused", LTL.And(playing, LTL.Next(paused), LTL.Unchanged("timeInSeconds"))),
+                LTL.Tag("StillPaused", LTL.And(paused, LTL.Unchanged("timeInSeconds"))),
+                LTL.Tag("tick", LTL.And(playing, LTL.Next(playing), LTL.Unchanged((m, n) => m.timeInSeconds <= n.timeInSeconds)))
+                ))
+            )
+        , 1);
         // var spec: LTL.LTLFormula<AudioPlayerModel> = LTL.And(
         //     LTL.Tag("paused", paused),
         //     LTL.Henceforth(LTL.Or(
@@ -198,7 +200,7 @@ describe.only('AudioPlayer', () => {
                     }
                     await page.goto("http://localhost:8000/audioplayer.html");
                     return {
-                        model: {loaded: true, buttonText: "Play", timeInSeconds: 0}, 
+                        model: {loaded: false, buttonText: "", timeInSeconds: 0}, 
                         real: {driver, page}
                     }
                 }

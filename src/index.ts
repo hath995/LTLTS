@@ -153,9 +153,12 @@ export function Predicate<A>(pred: Predicate<A>): LTLPredicate<A> {
   };
 }
 
-export function And<A>(term1: LTLFormula<A> | Predicate<A>, term2: LTLFormula<A> | Predicate<A>): LTLAnd<A> {
+export function And<A>(term1: LTLFormula<A> | Predicate<A>, term2: LTLFormula<A> | Predicate<A>, ...rest: (LTLFormula<A> | Predicate<A>)[]): LTLAnd<A> {
   let t1 = typeof term1 !== "function" ? term1 : Predicate(term1);
   let t2 = typeof term2 !== "function" ? term2 : Predicate(term2);
+  if(rest.length > 0) {
+    return And(t1, And(t2, rest[0], ...rest.slice(1)));
+  }
   return {
     kind: "and",
     term1: t1,
@@ -163,9 +166,12 @@ export function And<A>(term1: LTLFormula<A> | Predicate<A>, term2: LTLFormula<A>
   };
 }
 
-export function Or<A>(term1: LTLFormula<A> | Predicate<A>, term2: LTLFormula<A> | Predicate<A>): LTLOr<A> {
+export function Or<A>(term1: LTLFormula<A> | Predicate<A>, term2: LTLFormula<A> | Predicate<A>, ...rest: (LTLFormula<A> | Predicate<A>)[]): LTLOr<A> {
   let t1 = typeof term1 !== "function" ? term1 : Predicate(term1);
   let t2 = typeof term2 !== "function" ? term2 : Predicate(term2);
+  if(rest.length > 0) {
+    return Or(t1, Or(t2, rest[0], ...rest.slice(1)));
+  }
   return {
     kind: "or",
     term1: t1,
@@ -223,7 +229,15 @@ export function Next<A>(term: LTLFormula<A> | Predicate<A>): LLTLWeakNext<A> {
  * @param pred - function to test equality between two states
  * @returns boolean value of the comparison
  */
-export function Unchanged<A>(pred: (state: A, nextState: A) => boolean): LTLComparison<A> {
+export function Unchanged<A extends object, B extends keyof A>(pred: B): LTLComparison<A>
+export function Unchanged<A>(pred: (state: A, nextState: A) => boolean): LTLComparison<A>
+export function Unchanged<A>(pred: ((state: A, nextState: A) => boolean)): LTLComparison<A> {
+  if(typeof pred === "string" || typeof pred === "number" || typeof pred === "symbol") {
+    return {
+      kind: "comparison",
+      pred: (state: A, nextState: A) => state[pred] === nextState[pred]
+    };
+  }
   return {
     kind: "comparison",
     pred

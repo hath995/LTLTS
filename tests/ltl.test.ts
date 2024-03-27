@@ -518,6 +518,11 @@ describe("ltlEvaluate", () => {
     let term = LTL.Unchanged<number>((a: number,b: number) => a == b);
     expect(LTL.ltlEvaluate(stateTrue, term)).toEqual(LTL.DT);
     expect(LTL.ltlEvaluate(stateFalse, term)).toEqual(LTL.DF);
+    let propUnchanged: LTL.LTLFormula<{val: number}> = LTL.Unchanged("val");
+    let stateTrueObj = [{val: 1},{val: 1}];
+    let stateFalseObj = [{val: 1},{val: 2}];
+    expect(LTL.ltlEvaluate(stateTrueObj, propUnchanged)).toEqual(LTL.DT);
+    expect(LTL.ltlEvaluate(stateFalseObj, propUnchanged)).toEqual(LTL.DF);
   })
 
   it("should handle handle stuttering steps or advances", () => {

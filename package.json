@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "npx jest"
+    "test": "npx jest",
+    "sample-server": "cd tests/website_tests; python3 -m http.server"
   },
   "author": "",
   "license": "ISC",
