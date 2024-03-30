@@ -1,3 +1,5 @@
+import isEqual from "lodash.isequal";
+
 export type Predicate<A> = (state: A) => boolean;
 
 export type LTLPredicate<A> = {
@@ -142,7 +144,7 @@ export function FVNot(fv: Validity): Validity {
   }
 }
 
-export function Tag(tag: string, expr: LTLFormula<any>): LTLFormula<any> {
+export function Tag<T>(tag: string, expr: LTLFormula<T>): LTLFormula<T> {
   return {...expr, tag};
 }
 
@@ -229,13 +231,98 @@ export function Next<A>(term: LTLFormula<A> | Predicate<A>): LLTLWeakNext<A> {
  * @param pred - function to test equality between two states
  * @returns boolean value of the comparison
  */
+export function Unchanged<A extends object>(pred: (string | number | symbol)[]): LTLComparison<A>
 export function Unchanged<A extends object, B extends keyof A>(pred: B): LTLComparison<A>
 export function Unchanged<A>(pred: (state: A, nextState: A) => boolean): LTLComparison<A>
-export function Unchanged<A>(pred: ((state: A, nextState: A) => boolean)): LTLComparison<A> {
+export function Unchanged<A>(pred: ((state: A, nextState: A) => boolean) | keyof A | (string | number | symbol)[]): LTLComparison<A> {
+  if(Array.isArray(pred)) {
+    return {
+      kind: "comparison",
+      pred: (state: A, nextState: A) => pred.every(p => {
+        if (typeof p === "number" || typeof p === "symbol") {
+          // @ts-expect-error
+          if (p in state && p in nextState) {
+            // @ts-expect-error
+            return isEqual(state[p], nextState[p]);
+          } else {
+            throw new Error(`Property ${String(p)} not found in state or nextState`);
+          }
+        } else if (typeof p === "string") {
+          let propertyParts = p.split(".");
+          let stateCurrent = state;
+          let nextStateCurrent = nextState;
+          for (let i = 0; i < propertyParts.length; i++) {
+            // @ts-expect-error
+            if (propertyParts[i] in stateCurrent && propertyParts[i] in nextStateCurrent) {
+              // @ts-expect-error
+              stateCurrent = stateCurrent[propertyParts[i]];
+              // @ts-expect-error
+              nextStateCurrent = nextStateCurrent[propertyParts[i]];
+            } else {
+              throw new Error(`Property ${p} not found in state or nextState`);
+            }
+          }
+          return isEqual(stateCurrent, nextStateCurrent);
+        }
+      })
+    };
+  }
   if(typeof pred === "string" || typeof pred === "number" || typeof pred === "symbol") {
     return {
       kind: "comparison",
       pred: (state: A, nextState: A) => state[pred] === nextState[pred]
+    };
+  }
+  return {
+    kind: "comparison",
+    pred
+  };
+}
+
+/**
+ * 
+ * @param pred - function to test inequality between two states or properties
+ */
+export function Changed<A extends object>(pred: (string | number | symbol)[]): LTLComparison<A>
+export function Changed<A extends object, B extends keyof A>(pred: B): LTLComparison<A>
+export function Changed<A>(pred: (state: A, nextState: A) => boolean): LTLComparison<A>
+export function Changed<A>(pred: ((state: A, nextState: A) => boolean) | keyof A | (string | number | symbol)[]): LTLComparison<A> {
+  if(Array.isArray(pred)) {
+    return {
+      kind: "comparison",
+      pred: (state: A, nextState: A) => pred.every(p => {
+        if (typeof p === "number" || typeof p === "symbol") {
+          // @ts-expect-error
+          if (p in state && p in nextState) {
+            // @ts-expect-error
+            return !isEqual(state[p], nextState[p]);
+          } else {
+            throw new Error(`Property ${String(p)} not found in state or nextState`);
+          }
+        } else if (typeof p === "string") {
+          let propertyParts = p.split(".");
+          let stateCurrent = state;
+          let nextStateCurrent = nextState;
+          for (let i = 0; i < propertyParts.length; i++) {
+            // @ts-expect-error
+            if (propertyParts[i] in stateCurrent && propertyParts[i] in nextStateCurrent) {
+              // @ts-expect-error
+              stateCurrent = stateCurrent[propertyParts[i]];
+              // @ts-expect-error
+              nextStateCurrent = nextStateCurrent[propertyParts[i]];
+            } else {
+              throw new Error(`Property ${p} not found in state or nextState`);
+            }
+          }
+          return !isEqual(stateCurrent, nextStateCurrent);
+        }
+      })
+    };
+  }
+  if(typeof pred === "string" || typeof pred === "number" || typeof pred === "symbol") {
+    return {
+      kind: "comparison",
+      pred: (state: A, nextState: A) => state[pred] !== nextState[pred]
     };
   }
   return {

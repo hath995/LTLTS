@@ -523,6 +523,29 @@ describe("ltlEvaluate", () => {
     let stateFalseObj = [{val: 1},{val: 2}];
     expect(LTL.ltlEvaluate(stateTrueObj, propUnchanged)).toEqual(LTL.DT);
     expect(LTL.ltlEvaluate(stateFalseObj, propUnchanged)).toEqual(LTL.DF);
+    let propUnchangedMultiple: LTL.LTLFormula<{a: number, b: number, c: {d: boolean}}> = LTL.Unchanged(["a", "b", "c.d","e"]);
+    let stateTrueMultiple = [{a: 1, b: 1, c: {d: true},e: [1,2,3]}, {a: 1, b: 1, c: {d: true}, e: [1,2,3]}];
+    let stateFalseMultiple = [{a: 1, b: 1, c: {d: true}, e: [1,2,3]}, {a: 1, b: 1, c: {d: true}, e: [1,2,4]}];
+    expect(LTL.ltlEvaluate(stateTrueMultiple, propUnchangedMultiple)).toEqual(LTL.DT);
+    expect(LTL.ltlEvaluate(stateFalseMultiple, propUnchangedMultiple)).toEqual(LTL.DF);
+  })
+
+  it("should handle changed temporal formulas", () => {
+    let stateTrue = [1,2,2];
+    let stateFalse = [1,1,1];
+    let term = LTL.Changed<number>((a: number,b: number) => a !== b);
+    expect(LTL.ltlEvaluate(stateTrue, term)).toEqual(LTL.DT);
+    expect(LTL.ltlEvaluate(stateFalse, term)).toEqual(LTL.DF);
+    let propChanged: LTL.LTLFormula<{val: number}> = LTL.Changed("val");
+    let stateTrueObj = [{val: 1},{val: 2}];
+    let stateFalseObj = [{val: 1},{val: 1}];
+    expect(LTL.ltlEvaluate(stateTrueObj, propChanged)).toEqual(LTL.DT);
+    expect(LTL.ltlEvaluate(stateFalseObj, propChanged)).toEqual(LTL.DF);
+    let propChangedMultiple: LTL.LTLFormula<{a: number, b: number, c: {d: boolean}}> = LTL.Changed(["a", "b", "c.d","e"]);
+    let stateTrueMultiple = [{a: 1, b: 2, c: {d: true},e: [1,2,3]}, {a: 2, b: 3, c: {d: false}, e: [1,2,4]}];
+    let stateFalseMultiple = [{a: 1, b: 1, c: {d: true}, e: [1,2,3]}, {a: 1, b: 1, c: {d: true}, e: [1,2,3]}];
+    expect(LTL.ltlEvaluate(stateTrueMultiple, propChangedMultiple)).toEqual(LTL.DT);
+    expect(LTL.ltlEvaluate(stateFalseMultiple, propChangedMultiple)).toEqual(LTL.DF);
   })
 
   it("should handle handle stuttering steps or advances", () => {
