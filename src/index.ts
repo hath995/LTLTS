@@ -245,7 +245,7 @@ export function Unchanged<A>(pred: ((state: A, nextState: A) => boolean) | keyof
             // @ts-expect-error
             return isEqual(state[p], nextState[p]);
           } else {
-            throw new Error(`Property ${String(p)} not found in state or nextState`);
+            throw new Error(`Property '${String(p)}' not found in state or nextState`);
           }
         } else if (typeof p === "string") {
           let propertyParts = p.split(".");
@@ -259,7 +259,7 @@ export function Unchanged<A>(pred: ((state: A, nextState: A) => boolean) | keyof
               // @ts-expect-error
               nextStateCurrent = nextStateCurrent[propertyParts[i]];
             } else {
-              throw new Error(`Property ${p} not found in state or nextState`);
+              throw new Error(`Property '${p}' not found in state or nextState`);
             }
           }
           return isEqual(stateCurrent, nextStateCurrent);
@@ -270,7 +270,7 @@ export function Unchanged<A>(pred: ((state: A, nextState: A) => boolean) | keyof
   if(typeof pred === "string" || typeof pred === "number" || typeof pred === "symbol") {
     return {
       kind: "comparison",
-      pred: (state: A, nextState: A) => state[pred] === nextState[pred]
+      pred: (state: A, nextState: A) => isEqual(state[pred], nextState[pred])
     };
   }
   return {
@@ -322,7 +322,7 @@ export function Changed<A>(pred: ((state: A, nextState: A) => boolean) | keyof A
   if(typeof pred === "string" || typeof pred === "number" || typeof pred === "symbol") {
     return {
       kind: "comparison",
-      pred: (state: A, nextState: A) => state[pred] !== nextState[pred]
+      pred: (state: A, nextState: A) => !isEqual(state[pred],nextState[pred])
     };
   }
   return {

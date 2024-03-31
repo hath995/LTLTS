@@ -139,6 +139,7 @@ describe('AudioPlayer', () => {
                     }
                 }
                 await temporalAsyncModelRun(setup, cmds, spec);
+                return true;
                
             }).afterEach(async () => {
                     let driver = await waitForDriver();
