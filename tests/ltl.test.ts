@@ -280,6 +280,16 @@ describe("ltlEvaluate", () => {
     expect(LTL.ltlEvaluate([1], LTL.Or(LTL.True(), LTL.False()))).toEqual(LTL.Definitely(true));
   });
 
+  it("should handle bind", () => {
+    let term = LTL.Bind<number>(x => LTL.Henceforth((y: number) => y === x, 1));
+    expect(LTL.ltlEvaluate([1, 2, 3], term)).toEqual(LTL.DF);
+    expect(LTL.ltlEvaluate([1, 1, 1], term)).toEqual(LTL.PT);
+    
+    let term2 = LTL.Bind<number>(x => LTL.Next(LTL.Eventually((y: number) => y === x, 1)));
+    expect(LTL.ltlEvaluate([1, 2, 3], term2)).toEqual(LTL.PF);
+    expect(LTL.ltlEvaluate([1, 2, 2, 3, 1], term2)).toEqual(LTL.DT);
+  })
+
   it("should handle a true predicate", () => {
     expect(
       LTL.ltlEvaluate(

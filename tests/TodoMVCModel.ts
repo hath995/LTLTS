@@ -40,7 +40,7 @@ export function isElementVisible(el: HTMLElement): boolean {
             || el.offsetParent !== null)
     );
 }
-function first<T>(x: NodeList | T[]): Node | T | null {
+function first<T>(x: T[]): T | null {
     return x.length !== 0 ? x[0] : null;
 }
 function last<T>(x: T[]): T | null {
@@ -48,7 +48,7 @@ function last<T>(x: T[]): T | null {
 }
 export const elementSelectors = {
     selectedFilter() {
-        let element = first(document.querySelectorAll(".todoapp .filters a.selected"));
+        let element = first(Array.from(document.querySelectorAll(".todoapp .filters a.selected")));
         return element ? (element as HTMLElement).textContent : null;
     },
     items() {
@@ -69,7 +69,7 @@ export const elementSelectors = {
         });
     },
     editInput() {
-        let element = first(document.querySelectorAll(".todo-list .editing .edit"));
+        let element = first(Array.from(document.querySelectorAll(".todo-list .editing .edit")));
         return element !== null && isElementVisible(element as HTMLElement) ? { text: (element as HTMLElement).textContent, active: document.activeElement === element } : null;
     },
     lastItemText() {
@@ -98,7 +98,7 @@ export const elementSelectors = {
         return this.numInEditMode() > 0 && this.editInput() !== null;
     },
     newTodoInput() {
-        let element = first(document.querySelectorAll(".todoapp .new-todo"));
+        let element = first(Array.from(document.querySelectorAll(".todoapp .new-todo")));
         return element !== null ? { pendingText: (element as HTMLInputElement).value, active: document.activeElement === element } : null;
     },
     todoCount() {
@@ -112,7 +112,7 @@ export const elementSelectors = {
         return t;
     },
     itemsLeft() {
-        let item = first(document.querySelectorAll(".todoapp .todo-count"));
+        let item = first(Array.from(document.querySelectorAll(".todoapp .todo-count")));
         return item !== null && isElementVisible(item as HTMLElement) ? (item as HTMLElement).innerText : null;
     },
     availableFilters() {
@@ -120,7 +120,7 @@ export const elementSelectors = {
         return Array.from(elements).map(x => (x as HTMLElement).textContent);
     },
     toggleAllLabel() {
-        let element = first(document.querySelectorAll(".todoapp label[for=toggle-all]"));
+        let element = first(Array.from(document.querySelectorAll(".todoapp label[for=toggle-all]")));
         return element !== null ? (element as HTMLElement).textContent : null;
     },
     toggleAllChecked() {
@@ -280,7 +280,31 @@ export const enterEditText: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("EnterEditTex
     LTL.Changed((m, n) => !isEqual(m.editInput, n.editInput)),
     LTL.Unchanged(["selectedFilter", "numInEditMode", "items", "numItems", "todoCount"])
 ));
-export const enterEditMode: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("EnterEditMode", LTL.And(startEditing, LTL.Until(enterEditText,LTL.False())));
+var enterEditModeNext: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("EnterEditModeNext", LTL.Next(LTL.Bind(m => {
+    let initialItem = m.itemInEditMode;
+    return LTL.Until(enterEditText,LTL.Or(
+        LTL.Tag("abortEdit", LTL.And(
+            m => m.numInEditMode === 1,
+            LTL.Next(m => m.numInEditMode === 0),
+            LTL.Next(m => m.items[initialItem!.index] !== null && m.items[initialItem!.index].text === initialItem!.text),
+        )),
+        LTL.Tag("commitEdit", LTL.And(
+            m => m.numInEditMode === 1,
+            LTL.Next(m => m.numInEditMode === 0),
+            LTL.Or(
+                LTL.Implies(m => m.editInput === null, LTL.False()),
+                LTL.Implies(m => m.editInput !== null && m.editInput.text === "", LTL.Comparison((m, n) => n.numItems -1 === m.numItems)),
+                LTL.Implies(m => m.editInput !== null && m.editInput.text !== "", LTL.And(
+                    LTL.Unchanged("numItems"),
+                    LTL.Next(m => m.items[initialItem!.index] !== null && m.items[initialItem!.index].text === initialItem!.text),
+                )),
+            ),
+            LTL.Unchanged(["selectedFilter", "availableFilters", "newTodoInput.pendingText"])
+            )
+        ))
+    )
+}))); 
+export const enterEditMode: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("EnterEditMode", LTL.And(startEditing, enterEditModeNext));
 export const editModeTransition: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("EditModeTransition", LTL.And((m) => m.numInEditMode === 1, LTL.Next((m) => m.numInEditMode === 1 || m.numInEditMode === 0)));
 export const stateTransitions: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("StateTransitions", LTL.Henceforth(LTL.Or(
     focusNewTodo,

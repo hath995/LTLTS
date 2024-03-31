@@ -159,11 +159,12 @@ class CreateTodoCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance
 }
 
 class CheckOneCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
+    constructor(public index: number) {}
     async check(m: TodoMVCModel): Promise<boolean> {
-        return m.numItems > 0 && m.numUnchecked > 0 && !m.isInEditMode
+        return m.numItems > 0 && m.numUnchecked > 0 && this.index-1 < m.numItems && !m.items[this.index-1].isEditing && !m.items[this.index-1].checked
     }
     async run(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
-        await r.page.click(".todo-list li input[type='checkbox']:not(:checked)");
+        await r.page.click(`.todo-list li:nth-child(${this.index}) input[type='checkbox']`);
         await updateState(m, r);
     }
     toString(): string {
@@ -172,11 +173,13 @@ class CheckOneCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, 
 }
 
 class UncheckOneCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
+    constructor(public index: number) {}
     async check(m: TodoMVCModel): Promise<boolean> {
-        return m.numItems > 0 && m.numChecked > 0 && !m.isInEditMode
+        return m.numItems > 0 && m.numChecked > 0 && this.index-1 < m.numItems && !m.items[this.index-1].isEditing && m.items[this.index-1].checked
+
     }
     async run(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
-        await r.page.click(".todo-list li input[type='checkbox']:checked");
+        await r.page.click(`.todo-list li:nth-child(${this.index}) input[type='checkbox']`);
         await updateState(m, r);
     }
     toString(): string {
@@ -200,11 +203,11 @@ class ToggleAllCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance,
 class DeleteTodoCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     constructor(public index: number) {}
     async check(m: TodoMVCModel): Promise<boolean> {
-        return !m.isInEditMode && m.numItems > 0 && this.index < m.numItems
+        return !m.isInEditMode && m.numItems > 0 && this.index-1 < m.numItems
     }
     async run(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
-        await r.page.hover(`.todo-list li:nth-child(${this.index+1})`);
-        await r.page.click(`.todo-list li:nth-child(${this.index+1}) button.destroy`);
+        await r.page.hover(`.todo-list li:nth-child(${this.index})`);
+        await r.page.click(`.todo-list li:nth-child(${this.index}) button.destroy`);
         await updateState(m, r);
     }
     toString(): string {
@@ -270,8 +273,8 @@ let commands = [
     fc.constant(new WaitCommand),
     fc.constant(new FocusInputCommand),
     fc.constant(new CreateTodoCommand),
-    fc.constant(new CheckOneCommand),
-    fc.constant(new UncheckOneCommand),
+    ...([1,2,3,4,5,6,7,8,9]).map(x=> fc.constant(new CheckOneCommand(x))),
+    ...([1,2,3,4,5,6,7,8,9]).map(x=> fc.constant(new UncheckOneCommand(x))),
     fc.constant(new ToggleAllCommand),
     fc.constant(new CommitEditCommand),
     fc.constant(new AbortEditCommand),
@@ -314,14 +317,14 @@ describe('TodoMVC', () => {
                     let driver = await waitForDriver();
                     const [page] = await driver.pages();
                     await page.close();
-            }), {numRuns: 10,
+            }), {numRuns: 100,
                 examples: [
-                    [[new WaitCommand(), new FocusInputCommand(), new TypePendingText("a"), new TypePendingText("r"), new WaitCommand(), new CreateTodoCommand(), new WaitCommand()]],
+                    [[new WaitCommand(), new FocusInputCommand(), new TypePendingText("a"), new TypePendingText("r"), new WaitCommand(), new CreateTodoCommand(), new CheckOneCommand(1), new WaitCommand(), new UncheckOneCommand(1), new WaitCommand()]],
                     [[new FocusInputCommand(), new TypePendingText("a"), new TypePendingText("r"), new CreateTodoCommand(),  new WaitCommand(), new EditTodoCommand(1), new WaitCommand(), new TypeEditText('c'), new TypeEditText('d'), new CommitEditCommand(), new WaitCommand()]],
-                    [[new TypePendingText("a"), new CreateTodoCommand(), new EditTodoCommand(1), new WaitCommand(), new WaitCommand(), new CheckOneCommand(), new WaitCommand()]],
+                    [[new TypePendingText("a"), new CreateTodoCommand(), new EditTodoCommand(1), new WaitCommand(), new WaitCommand(), new CheckOneCommand(1), new WaitCommand()]],
                 ],
                 // timeout: 60*1000,
-                interruptAfterTimeLimit: 60*1000
+                interruptAfterTimeLimit: 600*1000
             });
         // } catch (e) {
         //     console.error(e);
@@ -329,6 +332,6 @@ describe('TodoMVC', () => {
         //     throw e;
 
         // }
-    }, 70*1000);
+    }, 700*1000);
 
 });

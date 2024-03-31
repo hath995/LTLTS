@@ -63,6 +63,11 @@ export type LTLComparison<A> = {
   pred: (state: A, nextState: A) => boolean;
 };
 
+export type LTLBind<A> = {
+  kind: "bind";
+  fn: (state: A) => LTLFormula<A>;
+};
+
 export type LLTLRequiredNext<A> = {
   kind: "req-next";
   term: LTLFormula<A>;
@@ -87,6 +92,7 @@ export type LTLFormula<A> =
   | LTLAnd<A>
   | LTLOr<A>
   | LTLNot<A>
+  | LTLBind<A>
   | LTLComparison<A>
   | LTLEventually<A>
   | LTLHenceforth<A>
@@ -153,6 +159,13 @@ export function Predicate<A>(pred: Predicate<A>): LTLPredicate<A> {
     kind: "pred",
     pred
   };
+}
+
+export function Bind<A>(fn: (state: A) => LTLFormula<A>): LTLFormula<A> {
+  return {
+    kind: "bind",
+    fn
+  }
 }
 
 export function And<A>(term1: LTLFormula<A> | Predicate<A>, term2: LTLFormula<A> | Predicate<A>, ...rest: (LTLFormula<A> | Predicate<A>)[]): LTLAnd<A> {
@@ -445,6 +458,10 @@ export function stepPred<A>(expr: LTLPredicate<A> & Tagged, state: A): LTLFormul
   }
 }
 
+export function stepBind<A>(expr: LTLBind<A>, state: A): LTLFormula<A> {
+  return step(expr.fn(state), state);
+}
+
 function collectTags(expr: LTLFormula<any>): Set<string> {
   if(expr.tag && expr.tags) {
     //return [expr.tag].concat(expr.tags);
@@ -691,6 +708,8 @@ export function step<A>(expr: LTLFormula<A>, state: A): LTLFormula<A> {
   switch (expr.kind) {
     case "pred":
       return stepPred(expr, state);
+    case "bind":
+      return stepBind(expr, state);
     case "true":
       return LTLTrue;
     case "false":
