@@ -252,6 +252,10 @@ export function Unchanged<A>(pred: ((state: A, nextState: A) => boolean) | keyof
           let stateCurrent = state;
           let nextStateCurrent = nextState;
           for (let i = 0; i < propertyParts.length; i++) {
+            if(stateCurrent === undefined || nextStateCurrent === undefined || stateCurrent === null || nextStateCurrent === null) {
+              throw new Error(`Property '${p}' not found in state or nextState`);
+            }
+
             // @ts-expect-error
             if (propertyParts[i] in stateCurrent && propertyParts[i] in nextStateCurrent) {
               // @ts-expect-error
@@ -304,6 +308,9 @@ export function Changed<A>(pred: ((state: A, nextState: A) => boolean) | keyof A
           let stateCurrent = state;
           let nextStateCurrent = nextState;
           for (let i = 0; i < propertyParts.length; i++) {
+            if(stateCurrent === undefined || nextStateCurrent === undefined || stateCurrent === null || nextStateCurrent === null) {
+              throw new Error(`Property '${p}' not found in state or nextState`);
+            }
             // @ts-expect-error
             if (propertyParts[i] in stateCurrent && propertyParts[i] in nextStateCurrent) {
               // @ts-expect-error

@@ -131,7 +131,21 @@ class TypePendingText implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, 
     }
 }
 
-class CreateTodoComamnd implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
+class TypeEditText implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
+    constructor(public text: KeyInput) {}
+    async check(m: TodoMVCModel): Promise<boolean> {
+        return m.isInEditMode
+    }
+    async run(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
+        await r.page.keyboard.press(this.text);
+        await updateState(m, r);
+    }
+    toString(): string {
+        return `TypeEditText(${this.text})`;
+    }
+}
+
+class CreateTodoCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     async check(m: TodoMVCModel): Promise<boolean> {
         return m.newTodoInput !== null && m.newTodoInput.active && m.newTodoInput.pendingText !== ""
     }
@@ -146,7 +160,7 @@ class CreateTodoComamnd implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance
 
 class CheckOneCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     async check(m: TodoMVCModel): Promise<boolean> {
-        return m.numItems > 0 && m.numUnchecked > 0
+        return m.numItems > 0 && m.numUnchecked > 0 && !m.isInEditMode
     }
     async run(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
         await r.page.click(".todo-list li input[type='checkbox']:not(:checked)");
@@ -159,7 +173,7 @@ class CheckOneCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, 
 
 class UncheckOneCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     async check(m: TodoMVCModel): Promise<boolean> {
-        return m.numItems > 0 && m.numChecked > 0
+        return m.numItems > 0 && m.numChecked > 0 && !m.isInEditMode
     }
     async run(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
         await r.page.click(".todo-list li input[type='checkbox']:checked");
@@ -212,15 +226,59 @@ class SelectFilterCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstan
     }
 }
 
+class CommitEditCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
+    async check(m: TodoMVCModel): Promise<boolean> {
+        return m.isInEditMode;
+    }
+    async run(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
+        await r.page.keyboard.press("Enter", {delay: 100});
+        await updateState(m, r);
+    }
+    toString(): string {
+        return "CommitEdit";
+    }
+}
+
+class AbortEditCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
+    async check(m: TodoMVCModel): Promise<boolean> {
+        return m.isInEditMode;
+    }
+    async run(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
+        await r.page.keyboard.press("Escape", {delay: 100});
+        await updateState(m, r);
+    }
+    toString(): string {
+        return "AbortEdit";
+    }
+}
+
+class EditTodoCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
+    constructor(public index: number) {}
+    async check(m: TodoMVCModel): Promise<boolean> {
+        return !m.isInEditMode && m.numItems > 0 && this.index-1 < m.numItems
+    }
+    async run(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
+        await r.page.click(`.todo-list :nth-child(${this.index}) label`, {clickCount: 2});
+        await updateState(m, r);
+    }
+    toString(): string {
+        return `Edit(${this.index})`;
+    }
+}
+
 let commands = [
     fc.constant(new WaitCommand),
     fc.constant(new FocusInputCommand),
-    fc.constant(new CreateTodoComamnd),
+    fc.constant(new CreateTodoCommand),
     fc.constant(new CheckOneCommand),
     fc.constant(new UncheckOneCommand),
     fc.constant(new ToggleAllCommand),
+    fc.constant(new CommitEditCommand),
+    fc.constant(new AbortEditCommand),
+    ...(["c","d"," ","Backspace"] as KeyInput[]).map(x => fc.constant(new TypeEditText(x))),
     ...([1,2,3] as number[]).map(x => fc.constant(new SelectFilterCommand(x))),
     ...[1,2,3,4,5,6,7,8,9].map(x => fc.constant(new DeleteTodoCommand(x))),
+    ...[1,2,3,4,5,6,7,8,9].map(x => fc.constant(new EditTodoCommand(x))),
     ...(["a","b"," ","Backspace"] as KeyInput[]).map(x => fc.constant(new TypePendingText(x)))
 ];
 describe('TodoMVC', () => {
@@ -232,7 +290,7 @@ describe('TodoMVC', () => {
     // try {
         let i = 1;
         await fc.assert(
-            fc.asyncProperty(fc.commands(commands,{size:"+1"}), async (cmds) => {
+            fc.asyncProperty(fc.commands(commands,{size:"+2"}), async (cmds) => {
                 console.log("Running test", i++);
                 let setup: () => Promise<{
                     model: TodoMVCModel,
@@ -258,7 +316,9 @@ describe('TodoMVC', () => {
                     await page.close();
             }), {numRuns: 10,
                 examples: [
-                    [[new WaitCommand(), new FocusInputCommand(), new TypePendingText("a"), new TypePendingText("r"), new WaitCommand(), new CreateTodoComamnd(), new WaitCommand(), new WaitCommand()]],
+                    [[new WaitCommand(), new FocusInputCommand(), new TypePendingText("a"), new TypePendingText("r"), new WaitCommand(), new CreateTodoCommand(), new WaitCommand()]],
+                    [[new FocusInputCommand(), new TypePendingText("a"), new TypePendingText("r"), new CreateTodoCommand(),  new WaitCommand(), new EditTodoCommand(1), new WaitCommand(), new TypeEditText('c'), new TypeEditText('d'), new CommitEditCommand(), new WaitCommand()]],
+                    [[new TypePendingText("a"), new CreateTodoCommand(), new EditTodoCommand(1), new WaitCommand(), new WaitCommand(), new CheckOneCommand(), new WaitCommand()]],
                 ],
                 // timeout: 60*1000,
                 interruptAfterTimeLimit: 60*1000

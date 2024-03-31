@@ -275,7 +275,12 @@ export const toggleAll: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("ToggleAll", LTL.
         ))
     )
 ));
-export const enterEditMode: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("EnterEditMode", LTL.False());
+export const enterEditText: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("EnterEditText", LTL.And(m => m.numInEditMode === 1,
+    m => m.editInput !== null,
+    LTL.Changed((m, n) => !isEqual(m.editInput, n.editInput)),
+    LTL.Unchanged(["selectedFilter", "numInEditMode", "items", "numItems", "todoCount"])
+));
+export const enterEditMode: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("EnterEditMode", LTL.And(startEditing, LTL.Until(enterEditText,LTL.False())));
 export const editModeTransition: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("EditModeTransition", LTL.And((m) => m.numInEditMode === 1, LTL.Next((m) => m.numInEditMode === 1 || m.numInEditMode === 0)));
 export const stateTransitions: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("StateTransitions", LTL.Henceforth(LTL.Or(
     focusNewTodo,
