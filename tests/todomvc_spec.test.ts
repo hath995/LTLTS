@@ -83,7 +83,6 @@ async function updateState(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
         }
         return result;
     })()`;
-    console.log(toEval);
     let newData = await r.page.evaluate(toEval) as TodoMVCModel;
     for(let key in newData) {
         //@ts-expect-error
@@ -171,12 +170,57 @@ class UncheckOneCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance
     }
 }
 
+class ToggleAllCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
+    async check(m: TodoMVCModel): Promise<boolean> {
+        return !m.isInEditMode && m.numItems > 0
+    }
+    async run(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
+        await r.page.click(".todoapp label[for=toggle-all]");
+        await updateState(m, r);
+    }
+    toString(): string {
+        return "ToggleAll";
+    }
+}
+
+class DeleteTodoCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
+    constructor(public index: number) {}
+    async check(m: TodoMVCModel): Promise<boolean> {
+        return !m.isInEditMode && m.numItems > 0 && this.index < m.numItems
+    }
+    async run(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
+        await r.page.hover(`.todo-list li:nth-child(${this.index+1})`);
+        await r.page.click(`.todo-list li:nth-child(${this.index+1}) button.destroy`);
+        await updateState(m, r);
+    }
+    toString(): string {
+        return `Delete(${this.index})`;
+    }
+}
+
+class SelectFilterCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
+    constructor(public ordinal: number) {}
+    async check(m: TodoMVCModel): Promise<boolean> {
+        return !m.isInEditMode && m.numItems > 0
+    }
+    async run(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
+        await r.page.click(`.todoapp .filters li:nth-child(${this.ordinal}) a`);
+        await updateState(m, r);
+    }
+    toString(): string {
+        return `SelectFilter(${this.ordinal})`;
+    }
+}
+
 let commands = [
     fc.constant(new WaitCommand),
     fc.constant(new FocusInputCommand),
     fc.constant(new CreateTodoComamnd),
     fc.constant(new CheckOneCommand),
     fc.constant(new UncheckOneCommand),
+    fc.constant(new ToggleAllCommand),
+    ...([1,2,3] as number[]).map(x => fc.constant(new SelectFilterCommand(x))),
+    ...[1,2,3,4,5,6,7,8,9].map(x => fc.constant(new DeleteTodoCommand(x))),
     ...(["a","b"," ","Backspace"] as KeyInput[]).map(x => fc.constant(new TypePendingText(x)))
 ];
 describe('TodoMVC', () => {
