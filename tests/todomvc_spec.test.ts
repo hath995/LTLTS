@@ -8,23 +8,24 @@ import { TodoMVCModel, TodoMVCInstance, convert, elementSelectors, initial, inva
 
 // let urls = ["https://todomvc.com/examples/react/dist/"]
 // let urls = ["https://todomvc.com/examples/closure/"]
-let urls = ["https://todomvc.com/examples/jquery/dist",
-"https://todomvc.com/examples/react/dist/",
-"https://todomvc.com/examples/angular-dart/web/",
-"https://todomvc.com/examples/elm/",
-"https://todomvc.com/examples/dijon/",
-"https://todomvc.com/examples/ractive/",
-"https://todomvc.com/examples/javascript-es6/dist/",
-"https://todomvc.com/examples/canjs_require/",
-"https://todomvc.com/examples/closure/",
-"https://todomvc.com/examples/typescript-backbone/",
-"https://todomvc.com/examples/typescript-angular/",
-"https://todomvc.com/examples/react-redux/dist/",
-"https://todomvc.com/examples/vue/dist/",
-"https://todomvc.com/examples/knockoutjs/",
-"https://todomvc.com/examples/mithril/",
-"https://todomvc.com/examples/duel/www/"
-]
+let urls = [
+  "https://todomvc.com/examples/jquery/dist",
+  "https://todomvc.com/examples/react/dist/",
+  "https://todomvc.com/examples/angular-dart/web/",
+  "https://todomvc.com/examples/elm/",
+  "https://todomvc.com/examples/dijon/",
+  "https://todomvc.com/examples/ractive/",
+  "https://todomvc.com/examples/javascript-es6/dist/",
+  "https://todomvc.com/examples/canjs_require/",
+  "https://todomvc.com/examples/closure/",
+  "https://todomvc.com/examples/typescript-backbone/",
+  "https://todomvc.com/examples/typescript-angular/",
+  "https://todomvc.com/examples/react-redux/dist/",
+  "https://todomvc.com/examples/vue/dist/",
+  "https://todomvc.com/examples/knockoutjs/",
+  "https://todomvc.com/examples/mithril/",
+  "https://todomvc.com/examples/duel/www/"
+];
 
 
 
