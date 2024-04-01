@@ -6,13 +6,31 @@ import { temporalAsyncModelRun } from "../src/ltlModelRunner";
 import { waitForDriver, waitForQuitAllDrivers, wait } from "./puppeteer_utils";
 import { TodoMVCModel, TodoMVCInstance, convert, elementSelectors, initial, invariants, stateTransitions } from './TodoMVCModel';
 
-// let url = ["https://todomvc.com/examples/react/dist/"]
-let url = ["https://todomvc.com/examples/jquery/dist"]
+// let urls = ["https://todomvc.com/examples/react/dist/"]
+// let urls = ["https://todomvc.com/examples/closure/"]
+let urls = ["https://todomvc.com/examples/jquery/dist",
+"https://todomvc.com/examples/react/dist/",
+"https://todomvc.com/examples/angular-dart/web/",
+"https://todomvc.com/examples/elm/",
+"https://todomvc.com/examples/dijon/",
+"https://todomvc.com/examples/ractive/",
+"https://todomvc.com/examples/javascript-es6/dist/",
+"https://todomvc.com/examples/canjs_require/",
+"https://todomvc.com/examples/closure/",
+"https://todomvc.com/examples/typescript-backbone/",
+"https://todomvc.com/examples/typescript-angular/",
+"https://todomvc.com/examples/react-redux/dist/",
+"https://todomvc.com/examples/vue/dist/",
+"https://todomvc.com/examples/knockoutjs/",
+"https://todomvc.com/examples/mithril/",
+"https://todomvc.com/examples/duel/www/"
+]
 
 
 
 
 const InitialModelState: TodoMVCModel = {
+    loaded: false,
     selectedFilter: "All",
     items: [],
     editInput: null,
@@ -95,7 +113,7 @@ class WaitCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true
         return true
     }
     async run(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
-        await wait(20);
+        await wait(10);
         await updateState(m, r);
         // console.log(m);
     }
@@ -106,7 +124,7 @@ class WaitCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true
 
 class FocusInputCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     async check(m: TodoMVCModel): Promise<boolean> {
-        return !m.isInEditMode
+        return m.loaded && !m.isInEditMode
     }
     async run(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
         await r.page.focus(".todoapp .new-todo");
@@ -120,7 +138,7 @@ class FocusInputCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance
 class TypePendingText implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     constructor(public text: KeyInput) {}
     async check(m: TodoMVCModel): Promise<boolean> {
-        return m.newTodoInput !== null && m.newTodoInput.active
+        return m.loaded && m.newTodoInput !== null && m.newTodoInput.active
     }
     async run(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
         await r.page.keyboard.press(this.text);
@@ -134,7 +152,7 @@ class TypePendingText implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, 
 class TypeEditText implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     constructor(public text: KeyInput) {}
     async check(m: TodoMVCModel): Promise<boolean> {
-        return m.isInEditMode
+        return m.loaded && m.isInEditMode
     }
     async run(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
         await r.page.keyboard.press(this.text);
@@ -147,10 +165,10 @@ class TypeEditText implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, tru
 
 class CreateTodoCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     async check(m: TodoMVCModel): Promise<boolean> {
-        return m.newTodoInput !== null && m.newTodoInput.active && m.newTodoInput.pendingText !== ""
+        return m.loaded && m.newTodoInput !== null && m.newTodoInput.active && m.newTodoInput.pendingText !== ""
     }
     async run(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
-        await r.page.keyboard.press("Enter", {delay: 100});
+        await r.page.keyboard.press("Enter");
         await updateState(m, r);
     }
     toString(): string {
@@ -161,21 +179,21 @@ class CreateTodoCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance
 class CheckOneCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     constructor(public index: number) {}
     async check(m: TodoMVCModel): Promise<boolean> {
-        return m.numItems > 0 && m.numUnchecked > 0 && this.index-1 < m.numItems && !m.items[this.index-1].isEditing && !m.items[this.index-1].checked
+        return m.loaded && m.numItems > 0 && m.numUnchecked > 0 && this.index-1 < m.numItems && !m.items[this.index-1].isEditing && !m.items[this.index-1].checked
     }
     async run(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
         await r.page.click(`.todo-list li:nth-child(${this.index}) input[type='checkbox']`);
         await updateState(m, r);
     }
     toString(): string {
-        return "CheckOne";
+        return `CheckOne(${this.index})`;
     }
 }
 
 class UncheckOneCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     constructor(public index: number) {}
     async check(m: TodoMVCModel): Promise<boolean> {
-        return m.numItems > 0 && m.numChecked > 0 && this.index-1 < m.numItems && !m.items[this.index-1].isEditing && m.items[this.index-1].checked
+        return m.loaded && m.numItems > 0 && m.numChecked > 0 && this.index-1 < m.numItems && !m.items[this.index-1].isEditing && m.items[this.index-1].checked
 
     }
     async run(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
@@ -183,13 +201,13 @@ class UncheckOneCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance
         await updateState(m, r);
     }
     toString(): string {
-        return "UncheckOne";
+        return `UncheckOne(${this.index})`;
     }
 }
 
 class ToggleAllCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     async check(m: TodoMVCModel): Promise<boolean> {
-        return !m.isInEditMode && m.numItems > 0
+        return m.loaded && !m.isInEditMode && m.numItems > 0
     }
     async run(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
         await r.page.click(".todoapp label[for=toggle-all]");
@@ -203,7 +221,7 @@ class ToggleAllCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance,
 class DeleteTodoCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     constructor(public index: number) {}
     async check(m: TodoMVCModel): Promise<boolean> {
-        return !m.isInEditMode && m.numItems > 0 && this.index-1 < m.numItems
+        return m.loaded && !m.isInEditMode && m.numItems > 0 && this.index-1 < m.numItems
     }
     async run(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
         await r.page.hover(`.todo-list li:nth-child(${this.index})`);
@@ -218,7 +236,7 @@ class DeleteTodoCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance
 class SelectFilterCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     constructor(public ordinal: number) {}
     async check(m: TodoMVCModel): Promise<boolean> {
-        return !m.isInEditMode && m.numItems > 0
+        return m.loaded && !m.isInEditMode && m.numItems > 0
     }
     async run(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
         await r.page.click(`.todoapp .filters li:nth-child(${this.ordinal}) a`);
@@ -231,10 +249,10 @@ class SelectFilterCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstan
 
 class CommitEditCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     async check(m: TodoMVCModel): Promise<boolean> {
-        return m.isInEditMode;
+        return m.loaded && m.isInEditMode;
     }
     async run(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
-        await r.page.keyboard.press("Enter", {delay: 100});
+        await r.page.keyboard.press("Enter");
         await updateState(m, r);
     }
     toString(): string {
@@ -244,10 +262,10 @@ class CommitEditCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance
 
 class AbortEditCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     async check(m: TodoMVCModel): Promise<boolean> {
-        return m.isInEditMode;
+        return m.loaded && m.isInEditMode;
     }
     async run(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
-        await r.page.keyboard.press("Escape", {delay: 100});
+        await r.page.keyboard.press("Escape");
         await updateState(m, r);
     }
     toString(): string {
@@ -258,7 +276,7 @@ class AbortEditCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance,
 class EditTodoCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     constructor(public index: number) {}
     async check(m: TodoMVCModel): Promise<boolean> {
-        return !m.isInEditMode && m.numItems > 0 && this.index-1 < m.numItems
+        return m.loaded && !m.isInEditMode && m.numItems > 0 && this.index-1 < m.numItems
     }
     async run(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
         await r.page.click(`.todo-list :nth-child(${this.index}) label`, {clickCount: 2});
@@ -287,51 +305,78 @@ let commands = [
 describe('TodoMVC', () => {
     afterEach(async () => {
       await waitForQuitAllDrivers();
+      await wait(1000);
     });
 
-    it("should follow the specification", async () => {
-    // try {
+    // it("%s should follow the specification", async () => {
+    test.each(urls)(
+      "%s should follow the specification",
+      async (url) => {
         let i = 1;
         await fc.assert(
-            fc.asyncProperty(fc.commands(commands,{size:"+2"}), async (cmds) => {
-                console.log("Running test", i++);
-                let setup: () => Promise<{
-                    model: TodoMVCModel,
-                    real: TodoMVCInstance
-                }> = async () => {
-                    let driver = await waitForDriver();
-                    let [page] = await driver.pages();
-                    if (page === undefined) {
-                        page = await driver.newPage();
-                    }
-                    await page.goto(url[0]);
-                    return {
-                        model: InitialModelState,
-                        real: { driver: driver, page: page }
-                    };
+          fc.asyncProperty(fc.commands(commands, { size: "+2" }), async (cmds) => {
+              console.log(`Running test, ${url}`, i++);
+              // await wait(1000);
+              let setup: () => Promise<{
+                model: TodoMVCModel;
+                real: TodoMVCInstance;
+              }> = async () => {
+                let driver = await waitForDriver();
+                let [page] = await driver.pages();
+                if (page === undefined) {
+                  page = await driver.newPage();
                 }
-                let spec: LTL.LTLFormula<TodoMVCModel> = LTL.And(initial, invariants, stateTransitions);
+                await page.goto(url);
+                return {
+                  model: InitialModelState,
+                  real: { driver: driver, page: page }
+                };
+              };
+              let spec: LTL.LTLFormula<TodoMVCModel> = LTL.And(initial, invariants, stateTransitions);
+              try {
                 await temporalAsyncModelRun(setup, cmds, spec);
-                return true;
-            }).afterEach(async () => {
-                    let driver = await waitForDriver();
-                    const [page] = await driver.pages();
-                    await page.close();
-            }), {numRuns: 100,
-                examples: [
-                    [[new WaitCommand(), new FocusInputCommand(), new TypePendingText("a"), new TypePendingText("r"), new WaitCommand(), new CreateTodoCommand(), new CheckOneCommand(1), new WaitCommand(), new UncheckOneCommand(1), new WaitCommand()]],
-                    [[new FocusInputCommand(), new TypePendingText("a"), new TypePendingText("r"), new CreateTodoCommand(),  new WaitCommand(), new EditTodoCommand(1), new WaitCommand(), new TypeEditText('c'), new TypeEditText('d'), new CommitEditCommand(), new WaitCommand()]],
-                    [[new TypePendingText("a"), new CreateTodoCommand(), new EditTodoCommand(1), new WaitCommand(), new WaitCommand(), new CheckOneCommand(1), new WaitCommand()]],
-                ],
-                // timeout: 60*1000,
-                interruptAfterTimeLimit: 600*1000
-            });
-        // } catch (e) {
-        //     console.error(e);
-        //     await waitForQuitAllDrivers();
-        //     throw e;
-
-        // }
-    }, 700*1000);
+              } catch (e) {
+                let driver = await waitForDriver();
+                const [page] = await driver.pages();
+                if (page !== undefined && page.url().startsWith(url)) {
+                  await page.evaluate(() => {
+                    localStorage.clear();
+                  });
+                  await page.close();
+                }
+                throw e;
+              }
+              return true;
+            })
+            .afterEach(async () => {
+              let driver = await waitForDriver();
+              const [page] = await driver.pages();
+              if (page !== undefined) {
+                await page.evaluate(() => {
+                  localStorage.clear();
+                });
+                await page.close();
+              }
+            }),
+          {
+            numRuns: 20,
+            examples: [
+              [
+                [ new WaitCommand(), new FocusInputCommand(), new TypePendingText("a"), new TypePendingText("r"), new WaitCommand(), new CreateTodoCommand(), new CheckOneCommand(1), new WaitCommand(), new UncheckOneCommand(1), new WaitCommand() ]
+              ],
+              [
+                [ new WaitCommand(), new FocusInputCommand(), new TypePendingText("a"), new TypePendingText("r"), new CreateTodoCommand(), new WaitCommand(), new EditTodoCommand(1), new WaitCommand(), new TypeEditText("c"), new TypeEditText("d"), new CommitEditCommand(), new WaitCommand() ]
+              ],
+              [
+                [ new WaitCommand(), new TypePendingText("a"), new CreateTodoCommand(), new EditTodoCommand(1), new WaitCommand(), new WaitCommand(), new CheckOneCommand(1), new WaitCommand()]
+              ]
+            ],
+            timeout: 60 * 1000,
+            interruptAfterTimeLimit: 600 * 1000
+          }
+        );
+      },
+      700 * 1000
+    );
 
 });

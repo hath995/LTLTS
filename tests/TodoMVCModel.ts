@@ -47,6 +47,9 @@ function last<T>(x: T[]): T | null {
     return x.length !== 0 ? x[x.length - 1] : null;
 }
 export const elementSelectors = {
+    loaded() {
+        return true;
+    },
     selectedFilter() {
         let element = first(Array.from(document.querySelectorAll(".todoapp .filters a.selected")));
         return element ? (element as HTMLElement).textContent : null;
@@ -61,7 +64,7 @@ export const elementSelectors = {
                 return [{
                     index,
                     text: x.querySelector('label')!.textContent,
-                    checked: x.querySelector<HTMLInputElement>('input[type="checkbox"]')!.checked,
+                    checked: x.querySelector<HTMLInputElement>('input[type="checkbox"]') === null ? false : x.querySelector<HTMLInputElement>('input[type="checkbox"]')!.checked,
                     isEditing
                 }];
             }
