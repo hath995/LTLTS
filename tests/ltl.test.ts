@@ -169,20 +169,20 @@ describe("step", () => {
   it("should handle henceforth false", () => {
     expect(
       LTL.step(
-        LTL.Henceforth((x: number) => x === 2, 1),
+        LTL.Always((x: number) => x === 2, 1),
         1
       )
     ).toEqual(LTL.False());
   });
 
   it("should handle henceforth unsure", () => {
-    let term = LTL.Henceforth((x: number) => x === 4, 1);
-    expect(LTL.step(term, 4)).toEqual(LTL.RequiredNext(LTL.Henceforth(term.term, 0)));
+    let term = LTL.Always((x: number) => x === 4, 1);
+    expect(LTL.step(term, 4)).toEqual(LTL.RequiredNext(LTL.Always(term.term, 0)));
   });
 
   it("should handle henceforth unsure with 0 steps", () => {
-    let term = LTL.Henceforth((x: number) => x === 4, 0);
-    expect(LTL.step(term, 4)).toEqual(LTL.WeakNext(LTL.Henceforth(term.term, 0)));
+    let term = LTL.Always((x: number) => x === 4, 0);
+    expect(LTL.step(term, 4)).toEqual(LTL.WeakNext(LTL.Always(term.term, 0)));
   });
 
   it("should handle until where it is satisfied", () => {
@@ -281,10 +281,10 @@ describe("ltlEvaluate", () => {
   });
 
   it("should handle bind", () => {
-    let term = LTL.Bind<number>(x => LTL.Henceforth((y: number) => y === x, 1));
+    let term = LTL.Bind<number>(x => LTL.Always((y: number) => y === x, 1));
     expect(LTL.ltlEvaluate([1, 2, 3], term)).toEqual(LTL.DF);
     expect(LTL.ltlEvaluate([1, 1, 1], term)).toEqual(LTL.PT);
-    
+
     let term2 = LTL.Bind<number>(x => LTL.Next(LTL.Eventually((y: number) => y === x, 1)));
     expect(LTL.ltlEvaluate([1, 2, 3], term2)).toEqual(LTL.PF);
     expect(LTL.ltlEvaluate([1, 2, 2, 3, 1], term2)).toEqual(LTL.DT);
@@ -348,7 +348,7 @@ describe("ltlEvaluate", () => {
     expect(
       LTL.ltlEvaluate(
         [2, 2, 2],
-        LTL.Henceforth((x: number) => x === 2, 1)
+        LTL.Always((x: number) => x === 2, 1)
       )
     ).toEqual(LTL.Probably(true));
     // expect(LTL.ltlEvaluate([0, 2, 2], LTL.Henceforth(1, (x: number) => x === 2))).toBe(true);
@@ -359,7 +359,7 @@ describe("ltlEvaluate", () => {
     expect(
       LTL.ltlEvaluate(
         [2, 2, 2],
-        LTL.Henceforth((x: number) => x === 3, 1)
+        LTL.Always((x: number) => x === 3, 1)
       )
     ).toEqual(LTL.Definitely(false));
     // expect(LTL.ltlEvaluate([0, 2, 2], LTL.Henceforth(1, (x: number) => x === 3), 1)).toBe(false);
@@ -388,7 +388,7 @@ describe("ltlEvaluate", () => {
         return expect(
           LTL.ltlEvaluate(
             arr,
-            LTL.Henceforth((y: number) => y === x, arr.length)
+            LTL.Always((y: number) => y === x, arr.length)
           )
         ).toEqual(arr.slice(i % arr.length).every((y: number) => y === x) ? LTL.Probably(true) : LTL.Definitely(false));
       })
@@ -444,7 +444,7 @@ describe("ltlEvaluate", () => {
         [2, 2, 2, 3, 3, 3],
         LTL.Until(
           (x: number) => x === 2,
-          LTL.Henceforth((x: number) => x === 3, 1),
+          LTL.Always((x: number) => x === 3, 1),
           1
         )
       )
@@ -456,7 +456,7 @@ describe("ltlEvaluate", () => {
       LTL.ltlEvaluate(
         [2, 2, 2, 6, 6, 6],
         LTL.Release(
-          LTL.Henceforth((x: number) => x % 3 == 0, 1),
+          LTL.Always((x: number) => x % 3 == 0, 1),
           (x: number) => x % 2 == 0,
           1
         )
@@ -466,7 +466,7 @@ describe("ltlEvaluate", () => {
       LTL.ltlEvaluate(
         [2, 2, 2, 3, 6, 6],
         LTL.Release(
-          LTL.Henceforth((x: number) => x % 3 == 0, 1),
+          LTL.Always((x: number) => x % 3 == 0, 1),
           (x: number) => x % 2 == 0,
           1
         )
@@ -562,7 +562,7 @@ describe("ltlEvaluate", () => {
     let stateTrue = [1,1,1,2,2,2,3,4,4,4];
     let stateFalseDec = [1,1,1,2,2,2,3,4,5,4];
     let stateFalseJump = [1,1,2,3,4,5,7];
-    let monotonic: LTL.LTLFormula<number> = LTL.Henceforth(LTL.Or(LTL.Unchanged((a,b) => a == b), LTL.Comparison((a, b) => a+1 == b)), 1)
+    let monotonic: LTL.LTLFormula<number> = LTL.Always(LTL.Or(LTL.Unchanged((a,b) => a == b), LTL.Comparison((a, b) => a+1 == b)), 1)
     expect(LTL.ltlEvaluate(stateTrue, monotonic)).toEqual(LTL.PT);
     expect(LTL.ltlEvaluate(stateFalseDec, monotonic)).toEqual(LTL.DF);
     expect(LTL.ltlEvaluate(stateFalseJump, monotonic)).toEqual(LTL.DF);
@@ -577,9 +577,9 @@ describe("ltlEvaluate", () => {
 
   it("should handle this weird case", () => {
     let states = [0,0,0,0];
-    let term: LTL.LTLFormula<number> = {"kind":"release","term":{"kind":"henceforth","term":{"kind":"true"},"steps":1},"condition":{"kind":"false"},"steps":0};
+    let term: LTL.LTLFormula<number> = {"kind":"release","term":{"kind":"always","term":{"kind":"true"},"steps":1},"condition":{"kind":"false"},"steps":0};
     expect(LTL.ltlEvaluate(states, term)).toEqual(LTL.PT);
-    let term3: LTL.LTLFormula<number> = {"kind":"henceforth","term":{"kind":"until","term":{"kind":"weak-next","term":{"kind":"true"}},"condition":{"kind":"weak-next","term":{"kind":"true"}},"steps":1},"steps":0}
+    let term3: LTL.LTLFormula<number> = {"kind":"always","term":{"kind":"until","term":{"kind":"weak-next","term":{"kind":"true"}},"condition":{"kind":"weak-next","term":{"kind":"true"}},"steps":1},"steps":0}
     expect(LTL.ltlEvaluate(states, term3)).toEqual(LTL.PF);
   })
 });
@@ -612,7 +612,7 @@ const LTLFormulaArbitrary = fc.letrec((tie) => {
       tie("until"),
       tie("release"),
       tie("eventually"),
-      tie("henceforth")
+      tie("always")
     ) as fc.Arbitrary<LTL.LTLFormula<number>>,
     true: fc.constant(LTL.True()),
     false: fc.constant(LTL.False()),
@@ -655,7 +655,7 @@ const LTLFormulaArbitrary = fc.letrec((tie) => {
       {}
     ) as fc.Arbitrary<LTL.LTLRelease<number>>,
     eventually: fc.record({ kind: fc.constant("eventually"), term: tie("term"), steps: fc.nat() }, {}) as fc.Arbitrary<LTL.LTLEventually<number>>,
-    henceforth: fc.record({ kind: fc.constant("henceforth"), term: tie("term"), steps: fc.nat() }, {}) as fc.Arbitrary<LTL.LTLHenceforth<number>>
+    always: fc.record({ kind: fc.constant("always"), term: tie("term"), steps: fc.nat() }, {}) as fc.Arbitrary<LTL.LTLAlways<number>>
   };
 });
 
@@ -683,13 +683,13 @@ describe("ltlEvaluateGenerator and ltlEvaluate", () => {
       }),
       {
         examples: [
-          [{ kind: "henceforth", term: { kind: "henceforth", term: { kind: "true" }, steps: 0 }, steps: 0 }, [0]],
+          [{ kind: "always", term: { kind: "always", term: { kind: "true" }, steps: 0 }, steps: 0 }, [0]],
           [{ kind: "eventually", term: { kind: "not", term: { kind: "true" } }, steps: 2 }, [0, 0]],
           [
             {
               kind: "until",
               steps: 1,
-              term: { kind: "henceforth", term: { kind: "true" }, steps: 0 },
+              term: { kind: "always", term: { kind: "true" }, steps: 0 },
               condition: { kind: "and", term1: { kind: "true" }, term2: { kind: "true" } }
             },
             [0]
@@ -697,7 +697,7 @@ describe("ltlEvaluateGenerator and ltlEvaluate", () => {
           [
             {
               kind: "or",
-              term1: { kind: "henceforth", term: { kind: "true" }, steps: 0 },
+              term1: { kind: "always", term: { kind: "true" }, steps: 0 },
               term2: { kind: "eventually", term: { kind: "true" }, steps: 0 }
             },
             [0]
@@ -705,16 +705,16 @@ describe("ltlEvaluateGenerator and ltlEvaluate", () => {
           [
             {
               kind: "not",
-              term: { kind: "and", term1: { kind: "henceforth", term: { kind: "true" }, steps: 0 }, term2: { kind: "true" } }
+              term: { kind: "and", term1: { kind: "always", term: { kind: "true" }, steps: 0 }, term2: { kind: "true" } }
             },
             [0]
           ],
           [{"kind":"eventually","term":{"kind":"and","term1":{"kind":"true"},"term2":{"kind":"comparison","pred":(x, y) => x % 1 == 0 && y % 1 == 0}},"steps":2},[2,3,4,5,6]],
-          [{"kind":"release","term": {kind: "henceforth", steps: 5, term: {kind: "pred", pred: (x) => x % 3 === 0}}, "condition":{kind: "henceforth", steps: 10, term: {kind: "pred", pred: (x)=> x%4==0}},"steps":2},[3,3,3,3,12,4,4,4,4,4,4,4,4,4]],
-          [{"kind":"release","term":{"kind":"henceforth","term":{"kind":"true"},"steps":1},"condition":{"kind":"false"},"steps":0},[0,0,0]],
-          [{"kind":"until","condition":{"kind":"henceforth","term":{"kind":"true"},"steps":1},"term":{"kind":"false"},"steps":0},[0,0,0]],
-          [{"kind":"henceforth","term":{"kind":"until","term":{"kind":"weak-next","term":{"kind":"true"}},"condition":{"kind":"weak-next","term":{"kind":"true"}},"steps":1},"steps":0},[0,0,0,0]],
-          [{"kind":"release","term":{"kind":"or","term1":{"kind":"henceforth","term":{"kind":"weak-next","term":{"kind":"true"}},"steps":1},"term2":{"kind":"comparison","pred":(x, y) => true}},"condition":{"kind":"pred","pred":(x) => false},"steps":0},[0,0,0]],
+          [{"kind":"release","term": {kind: "always", steps: 5, term: {kind: "pred", pred: (x) => x % 3 === 0}}, "condition":{kind: "always", steps: 10, term: {kind: "pred", pred: (x)=> x%4==0}},"steps":2},[3,3,3,3,12,4,4,4,4,4,4,4,4,4]],
+          [{"kind":"release","term":{"kind":"always","term":{"kind":"true"},"steps":1},"condition":{"kind":"false"},"steps":0},[0,0,0]],
+          [{"kind":"until","condition":{"kind":"always","term":{"kind":"true"},"steps":1},"term":{"kind":"false"},"steps":0},[0,0,0]],
+          [{"kind":"always","term":{"kind":"until","term":{"kind":"weak-next","term":{"kind":"true"}},"condition":{"kind":"weak-next","term":{"kind":"true"}},"steps":1},"steps":0},[0,0,0,0]],
+          [{"kind":"release","term":{"kind":"or","term1":{"kind":"always","term":{"kind":"weak-next","term":{"kind":"true"}},"steps":1},"term2":{"kind":"comparison","pred":(x, y) => true}},"condition":{"kind":"pred","pred":(x) => false},"steps":0},[0,0,0]],
           [{"kind":"eventually","term":{"kind":"release","term":{"kind":"false"}, condition: {kind: "false"},"steps":1},"steps":0},[0,0]],
         ],
         numRuns: 100
@@ -767,7 +767,7 @@ describe("temporalModelRunner", () => {
     fc.assert(
       fc.property(fc.commands(allCommands, {}), (cmds) => {
         const s = () => ({ model: { num: 0 }, real: new Queue() });
-        let sizeUpdatesBy1OrUnchanged: LTL.LTLFormula<Model> = LTL.Henceforth(
+        let sizeUpdatesBy1OrUnchanged: LTL.LTLFormula<Model> = LTL.Always(
           LTL.Or(
             LTL.Or(
               LTL.Unchanged((state, nextState) => state.num === nextState.num),
@@ -869,7 +869,7 @@ describe("temporalAsyncModelRunner", () => {
     await fc.assert(
       fc.asyncProperty(fc.commands([fc.constant(new StartCommand()), fc.constant(new StepCommand()), fc.constant(new StatusCommand()), fc.constant(new StopCommand())], {}), async (cmds) => {
         const s = async () => ({ model: { time: 0, running: false }, real: new Timer() });
-        let timeIncreasesBy1OrUnchanged: LTL.LTLFormula<TimerModel> = LTL.Henceforth(
+        let timeIncreasesBy1OrUnchanged: LTL.LTLFormula<TimerModel> = LTL.Always(
           LTL.And(
          LTL.Tag("MonotonicTime", LTL.Or(
             LTL.Unchanged((state, nextState) => state.time === nextState.time),
@@ -891,7 +891,7 @@ describe("Tag", () => {
       time: 0,
       running: false
     }
-    let bothViolated: LTL.LTLFormula<TimerModel> = LTL.Henceforth(
+    let bothViolated: LTL.LTLFormula<TimerModel> = LTL.Always(
       LTL.And(
         LTL.Tag("MonotonicTime", LTL.Or(
           LTL.Unchanged((state, nextState) => state.time === nextState.time),
@@ -991,8 +991,8 @@ describe("Tag", () => {
   });
 
   it("should propagate tags in henceforth", () => {
-    let henceforth = LTL.Tag("AlwaysOne", LTL.Henceforth(LTL.Tag("isOne", LTL.Predicate((x: number) => x === 1)), 1));
-    let henceforthZero = LTL.Tag("AlwaysOne", LTL.Henceforth(LTL.Tag("isOne", LTL.Predicate((x: number) => x === 1)), 0));
+    let henceforth = LTL.Tag("AlwaysOne", LTL.Always(LTL.Tag("isOne", LTL.Predicate((x: number) => x === 1)), 1));
+    let henceforthZero = LTL.Tag("AlwaysOne", LTL.Always(LTL.Tag("isOne", LTL.Predicate((x: number) => x === 1)), 0));
     let res = LTL.ltlEvaluateGenerator(henceforth, 1);
     expect(res.next().value.tags).toEqual(new Set(["AlwaysOne"]));
     let res3 = LTL.ltlEvaluateGenerator(henceforthZero, 1);
@@ -1029,7 +1029,7 @@ describe("Tag", () => {
           [{"kind":"not","term":{"kind":"release","term":{"kind":"true"},"condition":{"kind":"true"},"steps":0}},[0,0]],
           [{"kind":"release","term":{"kind":"false"},"condition":{"kind":"false"},"steps":0},[0,0]],
           [{"kind":"eventually","term":{"kind":"false"},"steps":0}, [0,0]],
-          [{"kind":"eventually","term":{"kind":"henceforth","term":{"kind":"true"},"steps":0},"steps":0},[0,0,0]]
+          [{"kind":"eventually","term":{"kind":"always","term":{"kind":"true"},"steps":0},"steps":0},[0,0,0]]
         ],
         numRuns: 100
       });

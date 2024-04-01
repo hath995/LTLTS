@@ -38,8 +38,8 @@ export type LTLEventually<A> = {
   term: LTLFormula<A>;
 };
 
-export type LTLHenceforth<A> = {
-  kind: "henceforth";
+export type LTLAlways<A> = {
+  kind: "always";
   steps: number;
   term: LTLFormula<A>;
 };
@@ -95,7 +95,7 @@ export type LTLFormula<A> =
   | LTLBind<A>
   | LTLComparison<A>
   | LTLEventually<A>
-  | LTLHenceforth<A>
+  | LTLAlways<A>
   | LTLRelease<A>
   | LTLUntil<A>
   | LLTLRequiredNext<A>
@@ -372,10 +372,10 @@ export function Eventually<A>(term: LTLFormula<A> | Predicate<A>, steps: number 
   };
 }
 
-export function Henceforth<A>(term: LTLFormula<A> | Predicate<A>, steps: number = 0): LTLHenceforth<A> {
+export function Always<A>(term: LTLFormula<A> | Predicate<A>, steps: number = 0): LTLAlways<A> {
   let t1 = typeof term !== "function" ? term : Predicate(term);
   return {
-    kind: "henceforth",
+    kind: "always",
     steps,
     term: t1
   };
@@ -427,11 +427,11 @@ export function StrongNext<A>(term: LTLFormula<A> | Predicate<A>): LLTLStrongNex
   };
 }
 
-export function NegatedFormula<A>(expr: LTLEventually<A> | LTLHenceforth<A> | LTLUntil<A> | LTLRelease<A>): LTLFormula<A> {
+export function NegatedFormula<A>(expr: LTLEventually<A> | LTLAlways<A> | LTLUntil<A> | LTLRelease<A>): LTLFormula<A> {
   switch (expr.kind) {
     case "eventually":
-      return Henceforth(Not(expr.term), expr.steps);
-    case "henceforth":
+      return Always(Not(expr.term), expr.steps);
+    case "always":
       return Eventually(Not(expr.term), expr.steps );
     case "until":
       return Release(Not(expr.condition), Not(expr.term), expr.steps);
@@ -588,8 +588,8 @@ function decrementSteps<A>(expr: LTLFormula<A>): LTLFormula<A> {
   switch (expr.kind) {
     case "eventually":
       return Eventually(expr.term, expr.steps - 1);
-    case "henceforth":
-      return Henceforth(expr.term, expr.steps - 1);
+    case "always":
+      return Always(expr.term, expr.steps - 1);
     case "until":
       return Until(expr.condition, expr.term, expr.steps - 1);
     case "release":
@@ -639,9 +639,9 @@ export function stepEventually<A>(expr: LTLEventually<A>, state: A): LTLFormula<
   }
 }
 
-export function stepHenceforth<A>(expr: LTLHenceforth<A>, state: A): LTLFormula<A> {
-  if (expr.term.kind === "henceforth") {
-    expr = Henceforth(expr.term.term, Math.max(expr.steps, expr.term.steps));
+export function stepAlways<A>(expr: LTLAlways<A>, state: A): LTLFormula<A> {
+  if (expr.term.kind === "always") {
+    expr = Always(expr.term.term, Math.max(expr.steps, expr.term.steps));
   }
   let term = step(expr.term, state);
   let ownTags = collectTags(expr);
@@ -651,14 +651,14 @@ export function stepHenceforth<A>(expr: LTLHenceforth<A>, state: A): LTLFormula<
   }
   if (expr.steps === 0) {
     if (containsTemporalOperator(expr.term)) {
-      return step(applyTags(And(expr.term, WeakNext(Henceforth(decrementSteps(expr.term), expr.steps))), tags), state);
+      return step(applyTags(And(expr.term, WeakNext(Always(decrementSteps(expr.term), expr.steps))), tags), state);
     }
     return step(applyTags(And(expr.term, WeakNext(expr)), tags), state);
   } else {
     if (containsTemporalOperator(expr.term)) {
-      return step(applyTags(And(expr.term, WeakNext(Henceforth(decrementSteps(expr.term), expr.steps - 1))), tags), state);
+      return step(applyTags(And(expr.term, WeakNext(Always(decrementSteps(expr.term), expr.steps - 1))), tags), state);
     }
-    return step(applyTags(And(expr.term, RequiredNext(Henceforth(expr.term, expr.steps - 1))), tags), state);
+    return step(applyTags(And(expr.term, RequiredNext(Always(expr.term, expr.steps - 1))), tags), state);
   }
 }
 
@@ -730,8 +730,8 @@ export function step<A>(expr: LTLFormula<A>, state: A): LTLFormula<A> {
       return stepStrongNext(expr, state);
     case "eventually":
       return stepEventually(expr, state);
-    case "henceforth":
-      return stepHenceforth(expr, state);
+    case "always":
+      return stepAlways(expr, state);
     case "until":
       return stepUntil(expr, state);
     case "release":
@@ -752,8 +752,8 @@ export function containsTemporalOperator<A>(expr: LTLFormula<A>): boolean {
   return false;
 }
 
-export function isTemporalOperator<A>(expr: LTLFormula<A>): expr is LTLEventually<A> | LTLHenceforth<A> | LTLUntil<A> | LTLRelease<A> {
-  return expr.kind === "eventually" || expr.kind === "henceforth" || expr.kind === "until" || expr.kind === "release";
+export function isTemporalOperator<A>(expr: LTLFormula<A>): expr is LTLEventually<A> | LTLAlways<A> | LTLUntil<A> | LTLRelease<A> {
+  return expr.kind === "eventually" || expr.kind === "always" || expr.kind === "until" || expr.kind === "release";
 }
 
 export function isGuarded<A>(expr: LTLFormula<A>): expr is LLTLRequiredNext<A> | LLTLWeakNext<A> | LLTLStrongNext<A> {
@@ -802,7 +802,7 @@ export function requiredSteps<A>(formula: LTLFormula<A>): number {
   switch (formula.kind) {
     case "eventually":
       return formula.steps + 1 + requiredSteps(formula.term);
-    case "henceforth":
+    case "always":
       return formula.steps + 1 + requiredSteps(formula.term);
     case "until":
       return Math.max(formula.steps + 1, requiredSteps(formula.term) + requiredSteps(formula.condition));
@@ -839,7 +839,7 @@ export function requiresNext(formula: LTLFormula<any>): boolean {
       return false;
     case "eventually":
       return requiresNext(formula.term);
-    case "henceforth":
+    case "always":
       return requiresNext(formula.term);
     case "until":
       return requiresNext(formula.term) || requiresNext(formula.condition);

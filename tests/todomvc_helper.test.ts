@@ -31,6 +31,7 @@ describe("enterNewTodoText", () => {
       )
     );
     let prev = {
+        "loaded": true,
         "availableFilters": [
             "All",
             "Active",
@@ -59,6 +60,7 @@ describe("enterNewTodoText", () => {
         "toggleAllLabel": "Mark all as complete"
     };
     let next = {
+        "loaded": true,
         "selectedFilter": "All",
         "items": [],
         "editInput": null,

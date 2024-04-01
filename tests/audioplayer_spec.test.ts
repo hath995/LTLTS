@@ -105,7 +105,7 @@ describe('AudioPlayer', () => {
         let playing = (m: AudioPlayerModel) => m.buttonText === "Pause";
         let paused = (m: AudioPlayerModel) => m.buttonText === "Play";
 
-        var spec: LTL.LTLFormula<AudioPlayerModel> = LTL.Henceforth(LTL.And(
+        var spec: LTL.LTLFormula<AudioPlayerModel> = LTL.Always(LTL.And(
                 LTL.Tag("buttonText", LTL.Implies(m => m.loaded, m => m.buttonText === "Play" || m.buttonText === "Pause")), 
                 LTL.Implies(m => m.loaded, LTL.Or(
                 LTL.Tag("play", LTL.And(paused, LTL.Next(playing), LTL.Unchanged("timeInSeconds"))),
