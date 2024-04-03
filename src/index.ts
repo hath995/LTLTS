@@ -149,11 +149,21 @@ export function FVNot(fv: Validity): Validity {
     return Probably(!fv.value);
   }
 }
-
+/**
+ * 
+ * @param tag string identifier for the formula
+ * @param expr 
+ * @returns expression with a tag
+ */
 export function Tag<T>(tag: string, expr: LTLFormula<T>): LTLFormula<T> {
   return {...expr, tag};
 }
 
+/**
+ * 
+ * @param pred boolean function to test some property of the state
+ * @returns 
+ */
 export function Predicate<A>(pred: Predicate<A>): LTLPredicate<A> {
   return {
     kind: "pred",
@@ -161,6 +171,11 @@ export function Predicate<A>(pred: Predicate<A>): LTLPredicate<A> {
   };
 }
 
+/**
+ * 
+ * @param fn function to be evaluated in the next state allowing state variables to be accessed and used in another formula
+ * @returns 
+ */
 export function Bind<A>(fn: (state: A) => LTLFormula<A>): LTLFormula<A> {
   return {
     kind: "bind",
@@ -168,6 +183,13 @@ export function Bind<A>(fn: (state: A) => LTLFormula<A>): LTLFormula<A> {
   }
 }
 
+/**
+ * 
+ * @param term1 First formula to be evaluated
+ * @param term2 Second formula to be evaluated
+ * @param rest Additional formulas to be evaluated
+ * @returns 
+ */
 export function And<A>(term1: LTLFormula<A> | Predicate<A>, term2: LTLFormula<A> | Predicate<A>, ...rest: (LTLFormula<A> | Predicate<A>)[]): LTLAnd<A> {
   let t1 = typeof term1 !== "function" ? term1 : Predicate(term1);
   let t2 = typeof term2 !== "function" ? term2 : Predicate(term2);
@@ -427,7 +449,7 @@ export function StrongNext<A>(term: LTLFormula<A> | Predicate<A>): LLTLStrongNex
   };
 }
 
-export function NegatedFormula<A>(expr: LTLEventually<A> | LTLAlways<A> | LTLUntil<A> | LTLRelease<A>): LTLFormula<A> {
+function NegatedFormula<A>(expr: LTLEventually<A> | LTLAlways<A> | LTLUntil<A> | LTLRelease<A>): LTLFormula<A> {
   switch (expr.kind) {
     case "eventually":
       return Always(Not(expr.term), expr.steps);
@@ -438,6 +460,12 @@ export function NegatedFormula<A>(expr: LTLEventually<A> | LTLAlways<A> | LTLUnt
     case "release":
       return Until(Not(expr.condition), Not(expr.term), expr.steps);
   }
+}
+
+export function LeadsTo<A>(condition: LTLFormula<A> | Predicate<A>, term: LTLFormula<A> | Predicate<A>): LTLFormula<A> {
+  let t1 = typeof condition !== "function" ? condition : Predicate(condition);
+  let t2 = typeof term !== "function" ? term : Predicate(term);
+  return Always(Implies(t1, Eventually(t2)));
 }
 
 export function stepTrue<A>(expr: LTLTrue): LTLTrue {
@@ -459,7 +487,8 @@ export function stepPred<A>(expr: LTLPredicate<A> & Tagged, state: A): LTLFormul
 }
 
 export function stepBind<A>(expr: LTLBind<A>, state: A): LTLFormula<A> {
-  return step(expr.fn(state), state);
+  let ownTags = collectTags(expr);
+  return applyTags(step(expr.fn(state), state), ownTags);
 }
 
 function collectTags(expr: LTLFormula<any>): Set<string> {

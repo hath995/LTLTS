@@ -21,7 +21,9 @@
     "typescript": "^5.4.2"
   },
   "dependencies": {
-    "lodash.isequal": "^4.5.0",
-    "immer": "^10.0.4"
+    "@types/json-diff": "^1.0.3",
+    "immer": "^10.0.4",
+    "json-diff": "^1.0.6",
+    "lodash.isequal": "^4.5.0"
   }
 }

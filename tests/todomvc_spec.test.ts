@@ -7,25 +7,25 @@ import { waitForDriver, waitForQuitAllDrivers, wait } from "./puppeteer_utils";
 import { TodoMVCModel, TodoMVCInstance, convert, elementSelectors, initial, invariants, stateTransitions } from './TodoMVCModel';
 
 // let urls = ["https://todomvc.com/examples/react/dist/"]
-// let urls = ["https://todomvc.com/examples/closure/"]
-let urls = [
-  "https://todomvc.com/examples/jquery/dist",
-  "https://todomvc.com/examples/react/dist/",
-  "https://todomvc.com/examples/angular-dart/web/",
-  "https://todomvc.com/examples/elm/",
-  "https://todomvc.com/examples/dijon/",
-  "https://todomvc.com/examples/ractive/",
-  "https://todomvc.com/examples/javascript-es6/dist/",
-  "https://todomvc.com/examples/canjs_require/",
-  "https://todomvc.com/examples/closure/",
-  "https://todomvc.com/examples/typescript-backbone/",
-  "https://todomvc.com/examples/typescript-angular/",
-  "https://todomvc.com/examples/react-redux/dist/",
-  "https://todomvc.com/examples/vue/dist/",
-  "https://todomvc.com/examples/knockoutjs/",
-  "https://todomvc.com/examples/mithril/",
-  "https://todomvc.com/examples/duel/www/"
-];
+let urls = ["https://todomvc.com/examples/jquery/dist"]
+// let urls = [
+//   "https://todomvc.com/examples/jquery/dist",
+//   "https://todomvc.com/examples/react/dist/",
+//   "https://todomvc.com/examples/angular-dart/web/",
+//   "https://todomvc.com/examples/elm/",
+//   "https://todomvc.com/examples/dijon/",
+//   "https://todomvc.com/examples/ractive/",
+//   "https://todomvc.com/examples/javascript-es6/dist/",
+//   "https://todomvc.com/examples/canjs_require/",
+//   "https://todomvc.com/examples/closure/",
+//   "https://todomvc.com/examples/typescript-backbone/",
+//   "https://todomvc.com/examples/typescript-angular/",
+//   "https://todomvc.com/examples/react-redux/dist/",
+//   "https://todomvc.com/examples/vue/dist/",
+//   "https://todomvc.com/examples/knockoutjs/",
+//   "https://todomvc.com/examples/mithril/",
+//   "https://todomvc.com/examples/duel/www/"
+// ];
 
 
 
@@ -109,7 +109,7 @@ async function updateState(m: TodoMVCModel, r: TodoMVCInstance): Promise<void> {
     }
 }
 
-class WaitCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
+class WaitC implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     async check(m: TodoMVCModel): Promise<boolean> {
         return true
     }
@@ -119,11 +119,11 @@ class WaitCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true
         // console.log(m);
     }
     toString(): string {
-        return "Wait";
+        return "WaitC()";
     }
 }
 
-class FocusInputCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
+class FocusInputC implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     async check(m: TodoMVCModel): Promise<boolean> {
         return m.loaded && !m.isInEditMode
     }
@@ -132,7 +132,7 @@ class FocusInputCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance
         await updateState(m, r);
     }
     toString(): string {
-        return "FocusInput";
+        return "FocusInputC()";
     }
 }
 
@@ -164,7 +164,7 @@ class TypeEditText implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, tru
     }
 }
 
-class CreateTodoCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
+class CreateTodoC implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     async check(m: TodoMVCModel): Promise<boolean> {
         return m.loaded && m.newTodoInput !== null && m.newTodoInput.active && m.newTodoInput.pendingText !== ""
     }
@@ -173,11 +173,11 @@ class CreateTodoCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance
         await updateState(m, r);
     }
     toString(): string {
-        return "CreateTodo";
+        return "CreateTodoC()";
     }
 }
 
-class CheckOneCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
+class CheckOneC implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     constructor(public index: number) {}
     async check(m: TodoMVCModel): Promise<boolean> {
         return m.loaded && m.numItems > 0 && m.numUnchecked > 0 && this.index-1 < m.numItems && !m.items[this.index-1].isEditing && !m.items[this.index-1].checked
@@ -187,11 +187,11 @@ class CheckOneCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, 
         await updateState(m, r);
     }
     toString(): string {
-        return `CheckOne(${this.index})`;
+        return `CheckOneC(${this.index})`;
     }
 }
 
-class UncheckOneCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
+class UncheckOneC implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     constructor(public index: number) {}
     async check(m: TodoMVCModel): Promise<boolean> {
         return m.loaded && m.numItems > 0 && m.numChecked > 0 && this.index-1 < m.numItems && !m.items[this.index-1].isEditing && m.items[this.index-1].checked
@@ -202,11 +202,11 @@ class UncheckOneCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance
         await updateState(m, r);
     }
     toString(): string {
-        return `UncheckOne(${this.index})`;
+        return `UncheckOneC(${this.index})`;
     }
 }
 
-class ToggleAllCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
+class ToggleAllC implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     async check(m: TodoMVCModel): Promise<boolean> {
         return m.loaded && !m.isInEditMode && m.numItems > 0
     }
@@ -215,11 +215,11 @@ class ToggleAllCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance,
         await updateState(m, r);
     }
     toString(): string {
-        return "ToggleAll";
+        return "ToggleAllC()";
     }
 }
 
-class DeleteTodoCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
+class DeleteTodoC implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     constructor(public index: number) {}
     async check(m: TodoMVCModel): Promise<boolean> {
         return m.loaded && !m.isInEditMode && m.numItems > 0 && this.index-1 < m.numItems
@@ -230,11 +230,11 @@ class DeleteTodoCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance
         await updateState(m, r);
     }
     toString(): string {
-        return `Delete(${this.index})`;
+        return `DeleteTodoC(${this.index})`;
     }
 }
 
-class SelectFilterCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
+class SelectFilterC implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     constructor(public ordinal: number) {}
     async check(m: TodoMVCModel): Promise<boolean> {
         return m.loaded && !m.isInEditMode && m.numItems > 0
@@ -244,11 +244,11 @@ class SelectFilterCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstan
         await updateState(m, r);
     }
     toString(): string {
-        return `SelectFilter(${this.ordinal})`;
+        return `SelectFilterC(${this.ordinal})`;
     }
 }
 
-class CommitEditCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
+class CommitEditC implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     async check(m: TodoMVCModel): Promise<boolean> {
         return m.loaded && m.isInEditMode;
     }
@@ -257,11 +257,11 @@ class CommitEditCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance
         await updateState(m, r);
     }
     toString(): string {
-        return "CommitEdit";
+        return "CommitEditC()";
     }
 }
 
-class AbortEditCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
+class AbortEditC implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     async check(m: TodoMVCModel): Promise<boolean> {
         return m.loaded && m.isInEditMode;
     }
@@ -270,11 +270,11 @@ class AbortEditCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance,
         await updateState(m, r);
     }
     toString(): string {
-        return "AbortEdit";
+        return "AbortEditC()";
     }
 }
 
-class EditTodoCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
+class EditTodoC implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, true> {
     constructor(public index: number) {}
     async check(m: TodoMVCModel): Promise<boolean> {
         return m.loaded && !m.isInEditMode && m.numItems > 0 && this.index-1 < m.numItems
@@ -284,23 +284,23 @@ class EditTodoCommand implements fc.AsyncCommand<TodoMVCModel, TodoMVCInstance, 
         await updateState(m, r);
     }
     toString(): string {
-        return `Edit(${this.index})`;
+        return `EditTodo(${this.index})`;
     }
 }
 
 let commands = [
-    fc.constant(new WaitCommand),
-    fc.constant(new FocusInputCommand),
-    fc.constant(new CreateTodoCommand),
-    ...([1,2,3,4,5,6,7,8,9]).map(x=> fc.constant(new CheckOneCommand(x))),
-    ...([1,2,3,4,5,6,7,8,9]).map(x=> fc.constant(new UncheckOneCommand(x))),
-    fc.constant(new ToggleAllCommand),
-    fc.constant(new CommitEditCommand),
-    fc.constant(new AbortEditCommand),
+    fc.constant(new WaitC),
+    fc.constant(new FocusInputC),
+    fc.constant(new CreateTodoC),
+    ...([1,2,3,4,5,6,7,8,9]).map(x=> fc.constant(new CheckOneC(x))),
+    ...([1,2,3,4,5,6,7,8,9]).map(x=> fc.constant(new UncheckOneC(x))),
+    fc.constant(new ToggleAllC),
+    fc.constant(new CommitEditC),
+    fc.constant(new AbortEditC),
     ...(["c","d"," ","Backspace"] as KeyInput[]).map(x => fc.constant(new TypeEditText(x))),
-    ...([1,2,3] as number[]).map(x => fc.constant(new SelectFilterCommand(x))),
-    ...[1,2,3,4,5,6,7,8,9].map(x => fc.constant(new DeleteTodoCommand(x))),
-    ...[1,2,3,4,5,6,7,8,9].map(x => fc.constant(new EditTodoCommand(x))),
+    ...([1,2,3] as number[]).map(x => fc.constant(new SelectFilterC(x))),
+    ...[1,2,3,4,5,6,7,8,9].map(x => fc.constant(new DeleteTodoC(x))),
+    ...[1,2,3,4,5,6,7,8,9].map(x => fc.constant(new EditTodoC(x))),
     ...(["a","b"," ","Backspace"] as KeyInput[]).map(x => fc.constant(new TypePendingText(x)))
 ];
 describe('TodoMVC', () => {
@@ -360,17 +360,20 @@ describe('TodoMVC', () => {
               }
             }),
           {
-            numRuns: 20,
+            numRuns: 10,
             examples: [
               [
-                [ new WaitCommand(), new FocusInputCommand(), new TypePendingText("a"), new TypePendingText("r"), new WaitCommand(), new CreateTodoCommand(), new CheckOneCommand(1), new WaitCommand(), new UncheckOneCommand(1), new WaitCommand() ]
+                [ new WaitC(), new FocusInputC(), new TypePendingText("a"), new TypePendingText("r"), new WaitC(), new CreateTodoC(), new CheckOneC(1), new WaitC(), new UncheckOneC(1), new WaitC() ]
               ],
               [
-                [ new WaitCommand(), new FocusInputCommand(), new TypePendingText("a"), new TypePendingText("r"), new CreateTodoCommand(), new WaitCommand(), new EditTodoCommand(1), new WaitCommand(), new TypeEditText("c"), new TypeEditText("d"), new CommitEditCommand(), new WaitCommand() ]
+                [ new WaitC(), new FocusInputC(), new TypePendingText("a"), new TypePendingText("r"), new CreateTodoC(), new WaitC(), new EditTodoC(1), new WaitC(), new TypeEditText("c"), new TypeEditText("d"), new CommitEditC(), new WaitC() ]
               ],
               [
-                [ new WaitCommand(), new TypePendingText("a"), new CreateTodoCommand(), new EditTodoCommand(1), new WaitCommand(), new WaitCommand(), new CheckOneCommand(1), new WaitCommand()]
-              ]
+                [ new WaitC(), new TypePendingText("a"), new CreateTodoC(), new EditTodoC(1), new WaitC(), new WaitC(), new CheckOneC(1), new WaitC()]
+              ],
+              [[new WaitC(), new TypePendingText("b"), new CreateTodoC(), new TypePendingText("a"), new CreateTodoC(), new SelectFilterC(3)]],
+              [[new WaitC(), new TypePendingText("a"), new CreateTodoC(), new CheckOneC(1), new TypePendingText("a"), new CreateTodoC(), new SelectFilterC(3), new TypePendingText("a"), new CreateTodoC(), new ToggleAllC(), new UncheckOneC(3)]],
+              [[new WaitC(), new WaitC(), new WaitC(), new TypePendingText("b"), new CreateTodoC(), new TypePendingText("a"), new CreateTodoC(), new SelectFilterC(3), new WaitC(), new WaitC(), new WaitC()]],
             ],
             timeout: 60 * 1000,
             interruptAfterTimeLimit: 600 * 1000

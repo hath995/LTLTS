@@ -166,7 +166,7 @@ describe("step", () => {
     expect(LTL.step(term, 1)).toEqual(LTL.StrongNext(LTL.Eventually(term.term)));
   });
 
-  it("should handle henceforth false", () => {
+  it("should handle always false", () => {
     expect(
       LTL.step(
         LTL.Always((x: number) => x === 2, 1),
@@ -175,12 +175,12 @@ describe("step", () => {
     ).toEqual(LTL.False());
   });
 
-  it("should handle henceforth unsure", () => {
+  it("should handle always unsure", () => {
     let term = LTL.Always((x: number) => x === 4, 1);
     expect(LTL.step(term, 4)).toEqual(LTL.RequiredNext(LTL.Always(term.term, 0)));
   });
 
-  it("should handle henceforth unsure with 0 steps", () => {
+  it("should handle always unsure with 0 steps", () => {
     let term = LTL.Always((x: number) => x === 4, 0);
     expect(LTL.step(term, 4)).toEqual(LTL.WeakNext(LTL.Always(term.term, 0)));
   });
@@ -344,7 +344,7 @@ describe("ltlEvaluate", () => {
     ).toEqual(LTL.Probably(false));
   });
 
-  it("should handle henceforth true", () => {
+  it("should handle always true", () => {
     expect(
       LTL.ltlEvaluate(
         [2, 2, 2],
@@ -355,7 +355,7 @@ describe("ltlEvaluate", () => {
     // expect(LTL.ltlEvaluate([0, 0, 2], LTL.Henceforth(1, (x: number) => x === 2))).toBe(true);
   });
 
-  it("should handle henceforth false", () => {
+  it("should handle always false", () => {
     expect(
       LTL.ltlEvaluate(
         [2, 2, 2],
@@ -382,7 +382,7 @@ describe("ltlEvaluate", () => {
     );
   });
 
-  it("should property based test henceforth", () => {
+  it("should property based test always", () => {
     fc.assert(
       fc.property(fc.array(fc.integer(), { minLength: 1 }), fc.integer(), fc.integer(), (arr, x, i) => {
         return expect(
@@ -438,7 +438,7 @@ describe("ltlEvaluate", () => {
     ).toEqual(LTL.Definitely(true));
   });
 
-  it("should handle until and henceforth", () => {
+  it("should handle until and always", () => {
     expect(
       LTL.ltlEvaluate(
         [2, 2, 2, 3, 3, 3],
@@ -451,7 +451,7 @@ describe("ltlEvaluate", () => {
     ).toEqual(LTL.PT);
   });
 
-  it("should handle release and henceforth", () => {
+  it("should handle release and always", () => {
     expect(
       LTL.ltlEvaluate(
         [2, 2, 2, 6, 6, 6],
@@ -581,6 +581,13 @@ describe("ltlEvaluate", () => {
     expect(LTL.ltlEvaluate(states, term)).toEqual(LTL.PT);
     let term3: LTL.LTLFormula<number> = {"kind":"always","term":{"kind":"until","term":{"kind":"weak-next","term":{"kind":"true"}},"condition":{"kind":"weak-next","term":{"kind":"true"}},"steps":1},"steps":0}
     expect(LTL.ltlEvaluate(states, term3)).toEqual(LTL.PF);
+  })
+
+  it("should handle leads to", () => {
+    let term: LTL.LTLFormula<number> = LTL.Always(LTL.Implies(x => x === 1, LTL.Eventually(x => x ===3)), 1);
+    expect(LTL.ltlEvaluate([1,2,3], term)).toEqual(LTL.PT);
+    expect(LTL.ltlEvaluate([1,1,1], term)).toEqual(LTL.PF);
+    expect(LTL.ltlEvaluate([2,2,2], term)).toEqual(LTL.PT);
   })
 });
 
@@ -990,7 +997,7 @@ describe("Tag", () => {
     expect(res3.next().value.tags).toEqual(new Set(["OnethenTwo","isTwo","isOne"]));
   });
 
-  it("should propagate tags in henceforth", () => {
+  it("should propagate tags in always", () => {
     let henceforth = LTL.Tag("AlwaysOne", LTL.Always(LTL.Tag("isOne", LTL.Predicate((x: number) => x === 1)), 1));
     let henceforthZero = LTL.Tag("AlwaysOne", LTL.Always(LTL.Tag("isOne", LTL.Predicate((x: number) => x === 1)), 0));
     let res = LTL.ltlEvaluateGenerator(henceforth, 1);

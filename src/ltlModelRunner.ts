@@ -1,6 +1,7 @@
 import * as LTL from './index';
 import * as immer from 'immer';
 import type { AsyncCommand, Command, ICommand, ModelRunAsyncSetup, ModelRunSetup } from "fast-check";
+import { diff, diffString } from "json-diff"
 
 type SetupState<Model, Real> = { model: Model; real: Real };
 /** @internal */
@@ -37,7 +38,7 @@ const genericModelRun = <Model extends object, Real, P, CheckAsync extends boole
             if (validity.value !== undefined && validity.value.validity.kind === "definitely" && validity.value.validity.value === false) {
               console.error(validity.value.tags)
               let oldModelS = JSON.stringify(oldModel, null, 2), newmodelS = JSON.stringify(model, null, 2);
-              throw new Error(`LTL property violated: ${Array.from(validity.value.tags)} ${oldModelS} \n\n ${newmodelS}`);
+              throw new Error(`LTL property violated: ${Array.from(validity.value.tags)} ${oldModelS} \n\n ${newmodelS} \n\n diff: ${diffString(oldModel, model, {full: true})}`);
             }
             return newState;
           });

@@ -19,6 +19,7 @@ function findParentOfType(el: HTMLElement, typ: Ctor<HTMLElement>): HTMLElement 
         return null;
     }
 }
+
 function isVisibleOption(el: HTMLElement) {
     if (!(el instanceof HTMLOptionElement)) {
         return false;
@@ -191,16 +192,14 @@ export const invariants: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("Invariants", LT
 export const unchangedAvailableFilters: LTL.LTLFormula<TodoMVCModel> = LTL.Unchanged("availableFilters");
 export const unchangedPendingText: LTL.LTLFormula<TodoMVCModel> = LTL.Unchanged((m, n) => m.newTodoInput !== null && n.newTodoInput !== null && m.newTodoInput.pendingText === n.newTodoInput.pendingText);
 export const unchangedTodoCount: LTL.LTLFormula<TodoMVCModel> = LTL.Unchanged("todoCount");
-export const focusNewTodo: LTL.LTLFormula<TodoMVCModel> = LTL.Tag(
-    "FocusNewTodo",
-    LTL.And<TodoMVCModel>(
+export const focusNewTodo: LTL.LTLFormula<TodoMVCModel> = LTL.And<TodoMVCModel>(
         (m) => m.newTodoInput !== null && !m.newTodoInput.active,
         LTL.Next((m) => m.newTodoInput !== null && m.newTodoInput.active),
         LTL.Unchanged(["selectedFilter", "newTodoInput.pendingText", "items", "todoCount", "availableFilters"])
     )
-);
-export const enterNewTodoText: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("EnterNewTodoText", LTL.And<TodoMVCModel>(LTL.Comparison((m, n) => m.newTodoInput !== null && n.newTodoInput !== null && m.newTodoInput.pendingText != n.newTodoInput.pendingText), LTL.Unchanged("items"), LTL.Unchanged("selectedFilter")));
-export const addNew: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("AddNew", LTL.And(
+;
+export const enterNewTodoText: LTL.LTLFormula<TodoMVCModel> = LTL.And<TodoMVCModel>(LTL.Comparison((m, n) => m.newTodoInput !== null && n.newTodoInput !== null && m.newTodoInput.pendingText != n.newTodoInput.pendingText), LTL.Unchanged("items"), LTL.Unchanged("selectedFilter"));
+export const addNew: LTL.LTLFormula<TodoMVCModel> = LTL.And(
     (m) => m.newTodoInput !== null && m.newTodoInput.pendingText.trim() !== "",
     LTL.Next(m => m.newTodoInput !== null && m.newTodoInput.pendingText === ""),
     LTL.Next(m => m.selectedFilter !== null),
@@ -211,27 +210,27 @@ export const addNew: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("AddNew", LTL.And(
         LTL.Implies(m => m.selectedFilter === "Completed", LTL.Unchanged(["selectedFilter", "items"]))
     )
 )
-);
-export const changeFilter: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("ChangeFilter", LTL.And<TodoMVCModel>(LTL.Comparison((m, n) => m.selectedFilter !== n.selectedFilter), LTL.Unchanged((m, n) => m.newTodoInput !== null && n.newTodoInput !== null && m.newTodoInput.pendingText === n.newTodoInput.pendingText), LTL.And(
+;
+export const changeFilter: LTL.LTLFormula<TodoMVCModel> = LTL.And<TodoMVCModel>(LTL.Comparison((m, n) => m.selectedFilter !== n.selectedFilter), LTL.Unchanged((m, n) => m.newTodoInput !== null && n.newTodoInput !== null && m.newTodoInput.pendingText === n.newTodoInput.pendingText), LTL.And(
     LTL.Implies(m => m.selectedFilter === null, LTL.False()),
-    LTL.Implies(m => m.selectedFilter === "All", LTL.Comparison((m, n) => m.numItems <= n.numItems)),
+    LTL.Implies(m => m.selectedFilter === "All", LTL.Comparison((m, n) => m.numItems >= n.numItems)),
     LTL.Implies(m => m.selectedFilter === "Active", LTL.Next(m => m.selectedFilter === "All" || m.selectedFilter === "Completed")),
     LTL.Implies(m => m.selectedFilter === "Completed", LTL.Next(m => m.selectedFilter === "All" || m.selectedFilter === "Active"))
-)));
-export const setSameFilter: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("SetSameFilter", LTL.And<TodoMVCModel>(LTL.Unchanged(["selectedFilter", "todoCount", "availableFilters"]), unchangedPendingText, LTL.Unchanged((m, n) => isEqual(m.items.map(x => x.text), n.items.map(x => x.text)))));
-export const checkOne: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("CheckOne", LTL.And<TodoMVCModel>(unchangedPendingText, LTL.Unchanged("selectedFilter"), LTL.And(
+));
+export const setSameFilter: LTL.LTLFormula<TodoMVCModel> = LTL.And<TodoMVCModel>(LTL.Unchanged(["selectedFilter", "todoCount", "availableFilters"]), unchangedPendingText, LTL.Unchanged((m, n) => isEqual(m.items.map(x => x.text), n.items.map(x => x.text))));
+export const checkOne: LTL.LTLFormula<TodoMVCModel> = LTL.And<TodoMVCModel>(unchangedPendingText, LTL.Unchanged("selectedFilter"), LTL.And(
     LTL.Implies(m => m.selectedFilter === null || !["All", "Active"].includes(m.selectedFilter), LTL.False()),
-    LTL.Implies(m => m.selectedFilter === "All", LTL.And(LTL.Unchanged("numItems"), LTL.Comparison((m, n) => n.numUnchecked > m.numUnchecked))),
-    LTL.Implies(m => m.selectedFilter === "Active", LTL.And(LTL.Comparison((m, n) => m.numUnchecked >= n.numUnchecked), LTL.Comparison((m, n) => m.todoCount !== null && n.todoCount !== null && m.todoCount >= n.todoCount)))
-)));
-export const startEditing: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("StartEditing", LTL.And<TodoMVCModel>(LTL.And((m) => m.numInEditMode === 1, LTL.Next((m) => m.numInEditMode === 1 && m.editInput !== null && m.editInput.active)), LTL.Unchanged("selectedFilter"), unchangedAvailableFilters, unchangedPendingText, unchangedTodoCount));
-export const uncheckOne: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("UncheckOne", LTL.And(unchangedPendingText, LTL.Unchanged("selectedFilter"), LTL.And(
+    LTL.Implies(m => m.selectedFilter === "All", LTL.Tag("x", LTL.And(LTL.Unchanged("numItems"), LTL.Comparison((m, n) => n.numUnchecked < m.numUnchecked)))),
+    LTL.Implies(m => m.selectedFilter === "Active", LTL.Tag("y", LTL.And(LTL.Comparison((m, n) => m.numUnchecked >= n.numUnchecked), LTL.Comparison((m, n) => m.todoCount !== null && n.todoCount !== null && m.todoCount >= n.todoCount))))
+));
+export const startEditing: LTL.LTLFormula<TodoMVCModel> = LTL.And<TodoMVCModel>(LTL.And((m) => m.numInEditMode === 1, LTL.Next((m) => m.numInEditMode === 1 && m.editInput !== null && m.editInput.active)), LTL.Unchanged("selectedFilter"), unchangedAvailableFilters, unchangedPendingText, unchangedTodoCount);
+export const uncheckOne: LTL.LTLFormula<TodoMVCModel> = LTL.And(unchangedPendingText, LTL.Unchanged("selectedFilter"), LTL.And(
     LTL.Implies(m => m.selectedFilter === null || !["All", "Completed"].includes(m.selectedFilter), LTL.False()),
-    LTL.Implies(m => m.selectedFilter === "All", LTL.And(LTL.Unchanged("numItems"), LTL.Comparison((m, n) => m.numUnchecked < n.numUnchecked))),
-    LTL.Implies(m => m.selectedFilter === "Completed", LTL.And(LTL.Comparison((m, n) => n.numItems > m.numItems), LTL.Comparison((m, n) => m.todoCount !== null && n.todoCount !== null && n.todoCount < m.todoCount)))
+    LTL.Implies(m => m.selectedFilter === "All", LTL.Tag("z", LTL.And(LTL.Unchanged("numItems"), LTL.Comparison((m, n) => m.numUnchecked < n.numUnchecked)))),
+    LTL.Implies(m => m.selectedFilter === "Completed", LTL.Tag("w", LTL.And(LTL.Comparison((m, n) => n.numItems < m.numItems), LTL.Comparison((m, n) => m.todoCount == null || n.todoCount == null || m.todoCount !== null && n.todoCount !== null && n.todoCount > m.todoCount))))
 
-)));
-export const deleteOne: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("DeleteOne", LTL.And(
+));
+export const deleteOne: LTL.LTLFormula<TodoMVCModel> = LTL.And(
     unchangedPendingText,
     m => m.selectedFilter !== null,
     LTL.And(
@@ -247,8 +246,8 @@ export const deleteOne: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("DeleteOne", LTL.
             )
         ))
     )
-));
-export const toggleAll: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("ToggleAll", LTL.And(
+);
+export const toggleAll: LTL.LTLFormula<TodoMVCModel> = LTL.And(
     unchangedPendingText,
     LTL.Unchanged("selectedFilter"),
     LTL.Next(m => {
@@ -277,12 +276,12 @@ export const toggleAll: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("ToggleAll", LTL.
             LTL.Implies(m => m.todoCount! > 0, LTL.Comparison((m, n) => n.numItems === m.numItems + m.todoCount!))
         ))
     )
-));
-export const enterEditText: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("EnterEditText", LTL.And(m => m.numInEditMode === 1,
+);
+export const enterEditText: LTL.LTLFormula<TodoMVCModel> = LTL.And(m => m.numInEditMode === 1,
     m => m.editInput !== null,
     LTL.Changed((m, n) => !isEqual(m.editInput, n.editInput)),
     LTL.Unchanged(["selectedFilter", "numInEditMode", "items", "numItems", "todoCount"])
-));
+);
 var enterEditModeNext: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("EnterEditModeNext", LTL.Next(LTL.Bind(m => {
     let initialItem = m.itemInEditMode;
     return LTL.Until(enterEditText,LTL.Or(
@@ -307,8 +306,8 @@ var enterEditModeNext: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("EnterEditModeNext
         ))
     )
 }))); 
-export const enterEditMode: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("EnterEditMode", LTL.And(startEditing, enterEditModeNext));
-export const editModeTransition: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("EditModeTransition", LTL.And((m) => m.numInEditMode === 1, LTL.Next((m) => m.numInEditMode === 1 || m.numInEditMode === 0)));
+export const enterEditMode: LTL.LTLFormula<TodoMVCModel> = LTL.And(startEditing, enterEditModeNext);
+export const editModeTransition: LTL.LTLFormula<TodoMVCModel> = LTL.And((m) => m.numInEditMode === 1, LTL.Next((m) => m.numInEditMode === 1 || m.numInEditMode === 0));
 export const stateTransitions: LTL.LTLFormula<TodoMVCModel> = LTL.Tag("StateTransitions", LTL.Always(LTL.Or(
     focusNewTodo,
     enterNewTodoText,
