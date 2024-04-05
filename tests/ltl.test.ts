@@ -395,6 +395,23 @@ describe("ltlEvaluate", () => {
     );
   });
 
+    // it("should handle always eventually", () => {
+
+  // })
+
+  xit("should handle eventually always", () => {
+    let phi = (x: number) => x === 3;
+    let expr = LTL.Eventually(LTL.Always(phi, 1));
+    expect(LTL.ltlEvaluate([2, 2, 3, 3, 3], expr)).toBe(LTL.PT);
+    let gen = LTL.ltlEvaluateGenerator<number>(expr, 2);
+    let res = gen.next();
+    for(let s of [2,3,3,2]) {
+      res = gen.next(s);
+    }
+    console.log(res);
+    expect(LTL.ltlEvaluate([2, 2, 3, 3, 2], expr)).toBe(LTL.PF);
+  })
+
   it("should handle until", () => {
     expect(
       LTL.ltlEvaluate(
@@ -526,16 +543,19 @@ describe("ltlEvaluate", () => {
     let stateTrue = [1,1,1];
     let stateFalse = [1,2,2];
     let term = LTL.Unchanged<number>((a: number,b: number) => a == b);
+    console.log(term.toString());
     expect(LTL.ltlEvaluate(stateTrue, term)).toEqual(LTL.DT);
     expect(LTL.ltlEvaluate(stateFalse, term)).toEqual(LTL.DF);
     let propUnchanged: LTL.LTLFormula<{val: number}> = LTL.Unchanged("val");
+    console.log(propUnchanged.toString());
     let stateTrueObj = [{val: 1},{val: 1}];
     let stateFalseObj = [{val: 1},{val: 2}];
     expect(LTL.ltlEvaluate(stateTrueObj, propUnchanged)).toEqual(LTL.DT);
     expect(LTL.ltlEvaluate(stateFalseObj, propUnchanged)).toEqual(LTL.DF);
-    let propUnchangedMultiple: LTL.LTLFormula<{a: number, b: number, c: {d: boolean}}> = LTL.Unchanged(["a", "b", "c.d","e"]);
+    let propUnchangedMultiple: LTL.LTLFormula<{a: number, b: number, c: {d: boolean}}> = LTL.Tag("unchangedABCDE",LTL.Unchanged(["a", "b", "c.d","e"]));
     let stateTrueMultiple = [{a: 1, b: 1, c: {d: true},e: [1,2,3]}, {a: 1, b: 1, c: {d: true}, e: [1,2,3]}];
     let stateFalseMultiple = [{a: 1, b: 1, c: {d: true}, e: [1,2,3]}, {a: 1, b: 1, c: {d: true}, e: [1,2,4]}];
+    console.log(propUnchangedMultiple.toString());
     expect(LTL.ltlEvaluate(stateTrueMultiple, propUnchangedMultiple)).toEqual(LTL.DT);
     expect(LTL.ltlEvaluate(stateFalseMultiple, propUnchangedMultiple)).toEqual(LTL.DF);
   })

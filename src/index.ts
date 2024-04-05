@@ -26,10 +26,12 @@ export type LTLNot<A> = {
 
 export type LTLTrue = {
   kind: "true";
+  toString(): string;
 };
 
 export type LTLFalse = {
   kind: "false";
+  toString(): string;
 };
 
 export type LTLEventually<A> = {
@@ -156,19 +158,45 @@ export function FVNot(fv: Validity): Validity {
  * @returns expression with a tag
  */
 export function Tag<T>(tag: string, expr: LTLFormula<T>): LTLFormula<T> {
-  return {...expr, tag};
+  expr.tag = tag;
+  return expr;
 }
-
+function isLambda(string: string): string {
+  return string.includes("=>") ? string.slice(/=>/.exec(string)!.index+2).trim() : string;
+}
+function tagString(expr: Tagged): string {
+    return expr.tag || expr.tags ? `{${(expr.tag ? [expr.tag] : []).concat(Array.from(expr.tags ?? [])).join(",")}}` : "";
+}
+class PredicateTagged<A> implements LTLPredicate<A>, Tagged {
+  kind: "pred"
+  tag?: string
+  tags?: Set<string>
+  constructor(public pred: Predicate<A>, public desc?: string) {
+    this.kind = "pred";
+  }
+  toString() {
+    return `Pred${tagString(this)}(${isLambda(this.pred.toString())})`
+  }
+}
 /**
  * 
  * @param pred boolean function to test some property of the state
  * @returns 
  */
 export function Predicate<A>(pred: Predicate<A>): LTLPredicate<A> {
-  return {
-    kind: "pred",
-    pred
-  };
+  return new PredicateTagged(pred);
+}
+
+class BindTagged<A> implements LTLBind<A>, Tagged {
+  kind: "bind"
+  tag?: string
+  tags?: Set<string>
+  constructor(public fn: (state: A) => LTLFormula<A>) {
+    this.kind = "bind";
+  }
+  toString() {
+    return `Bind${tagString(this)}(${isLambda(this.fn.toString())})`
+  }
 }
 
 /**
@@ -177,9 +205,18 @@ export function Predicate<A>(pred: Predicate<A>): LTLPredicate<A> {
  * @returns 
  */
 export function Bind<A>(fn: (state: A) => LTLFormula<A>): LTLFormula<A> {
-  return {
-    kind: "bind",
-    fn
+  return new BindTagged(fn);
+}
+
+class AndTagged<A> implements LTLAnd<A>, Tagged {
+  kind: "and"
+  tag?: string
+  tags?: Set<string>
+  constructor(public term1: LTLFormula<A>, public term2: LTLFormula<A>) {
+    this.kind = "and";
+  }
+  toString() {
+    return `And${tagString(this)}(${this.term1.toString()}, ${this.term2.toString()})`
   }
 }
 
@@ -191,54 +228,73 @@ export function Bind<A>(fn: (state: A) => LTLFormula<A>): LTLFormula<A> {
  * @returns 
  */
 export function And<A>(term1: LTLFormula<A> | Predicate<A>, term2: LTLFormula<A> | Predicate<A>, ...rest: (LTLFormula<A> | Predicate<A>)[]): LTLAnd<A> {
-  let t1 = typeof term1 !== "function" ? term1 : Predicate(term1);
-  let t2 = typeof term2 !== "function" ? term2 : Predicate(term2);
+  let t1 = typeof term1 !== "function" ? term1 : new PredicateTagged(term1);
+  let t2 = typeof term2 !== "function" ? term2 : new PredicateTagged(term2);
   if(rest.length > 0) {
     return And(t1, And(t2, rest[0], ...rest.slice(1)));
   }
-  return {
-    kind: "and",
-    term1: t1,
-    term2: t2
-  };
+  return new AndTagged(t1, t2);
+}
+
+class OrTagged<A> implements LTLOr<A>, Tagged {
+  kind: "or"
+  tag?: string
+  tags?: Set<string>
+  constructor(public term1: LTLFormula<A>, public term2: LTLFormula<A>) {
+    this.kind = "or";
+  }
+  toString() {
+    return `Or${tagString(this)}(${this.term1.toString()}, ${this.term2.toString()})`
+  }
 }
 
 export function Or<A>(term1: LTLFormula<A> | Predicate<A>, term2: LTLFormula<A> | Predicate<A>, ...rest: (LTLFormula<A> | Predicate<A>)[]): LTLOr<A> {
-  let t1 = typeof term1 !== "function" ? term1 : Predicate(term1);
-  let t2 = typeof term2 !== "function" ? term2 : Predicate(term2);
+  let t1 = typeof term1 !== "function" ? term1 : new PredicateTagged(term1);
+  let t2 = typeof term2 !== "function" ? term2 : new PredicateTagged(term2);
   if(rest.length > 0) {
     return Or(t1, Or(t2, rest[0], ...rest.slice(1)));
   }
-  return {
-    kind: "or",
-    term1: t1,
-    term2: t2
-  };
+  return new OrTagged(t1, t2);
+}
+
+class NotTagged<A> implements LTLNot<A>, Tagged {
+  kind: "not"
+  tag?: string
+  tags?: Set<string>
+  constructor(public term: LTLFormula<A>) {
+    this.kind = "not";
+  }
+  toString() {
+    return `Not${tagString(this)}(${this.term.toString()})`
+  }
 }
 
 export function Not<A>(term1: LTLFormula<A> | Predicate<A>): LTLNot<A> {
-  let t1 = typeof term1 !== "function" ? term1 : Predicate(term1);
-  return {
-    kind: "not",
-    term: t1
-  };
+  let t1 = typeof term1 !== "function" ? term1 : new PredicateTagged(term1);
+  return new NotTagged(t1);
 }
 
 export function Implies<A>(term1: LTLFormula<A> | Predicate<A>, term2: LTLFormula<A> | Predicate<A>): LTLOr<A> {
-  let t1 = typeof term1 !== "function" ? term1 : Predicate(term1);
-  let t2 = typeof term2 !== "function" ? term2 : Predicate(term2);
+  let t1 = typeof term1 !== "function" ? term1 : new PredicateTagged(term1);
+  let t2 = typeof term2 !== "function" ? term2 : new PredicateTagged(term2);
   return Or(Not(t1), t2);
 }
 
 const LTLTrue: LTLTrue = {
-  kind: "true"
+  kind: "true",
+  toString() {
+    return "True";
+  }
 };
 export function True(): LTLTrue {
   return LTLTrue;
 }
 
 const LTLFalse: LTLFalse = {
-  kind: "false"
+  kind: "false",
+  toString() {
+    return "False";
+  }
 };
 
 export function False(): LTLFalse {
@@ -261,6 +317,18 @@ export function isFalse(expr: LTLFormula<any>): expr is LTLFalse {
 export function Next<A>(term: LTLFormula<A> | Predicate<A>): LLTLWeakNext<A> {
   return WeakNext(term);
 }
+
+class UnchangedTagged<A> implements LTLComparison<A>, Tagged {
+  kind: "comparison"
+  tag?: string
+  tags?: Set<string>
+  constructor(public pred: (state: A, nextState: A) => boolean, public desc?: string) {
+    this.kind = "comparison";
+  }
+  toString() {
+    return `Unchanged${tagString(this)}(${this.desc === undefined ? isLambda(this.pred.toString()) : this.desc})`
+  }
+}
 /**
  *
  * @param pred - function to test equality between two states
@@ -271,9 +339,7 @@ export function Unchanged<A extends object, B extends keyof A>(pred: B): LTLComp
 export function Unchanged<A>(pred: (state: A, nextState: A) => boolean): LTLComparison<A>
 export function Unchanged<A>(pred: ((state: A, nextState: A) => boolean) | keyof A | (string | number | symbol)[]): LTLComparison<A> {
   if(Array.isArray(pred)) {
-    return {
-      kind: "comparison",
-      pred: (state: A, nextState: A) => pred.every(p => {
+    return new UnchangedTagged((state: A, nextState: A) => pred.every(p => {
         if (typeof p === "number" || typeof p === "symbol") {
           // @ts-expect-error
           if (p in state && p in nextState) {
@@ -303,19 +369,24 @@ export function Unchanged<A>(pred: ((state: A, nextState: A) => boolean) | keyof
           }
           return isEqual(stateCurrent, nextStateCurrent);
         }
-      })
-    };
+      }), `[${pred.toString()}]`);
   }
   if(typeof pred === "string" || typeof pred === "number" || typeof pred === "symbol") {
-    return {
-      kind: "comparison",
-      pred: (state: A, nextState: A) => isEqual(state[pred], nextState[pred])
-    };
+    return new UnchangedTagged((state: A, nextState: A) => isEqual(state[pred], nextState[pred]), pred.toString());
   }
-  return {
-    kind: "comparison",
-    pred
-  };
+  return new UnchangedTagged(pred);
+}
+
+class ChangedTagged<A> implements LTLComparison<A>, Tagged {
+  kind: "comparison"
+  tag?: string
+  tags?: Set<string>
+  constructor(public pred: (state: A, nextState: A) => boolean, public desc?: string) {
+    this.kind = "comparison";
+  }
+  toString() {
+    return `Changed${tagString(this)}(${this.desc === undefined ? isLambda(this.pred.toString()) : this.desc})`
+  }
 }
 
 /**
@@ -327,9 +398,7 @@ export function Changed<A extends object, B extends keyof A>(pred: B): LTLCompar
 export function Changed<A>(pred: (state: A, nextState: A) => boolean): LTLComparison<A>
 export function Changed<A>(pred: ((state: A, nextState: A) => boolean) | keyof A | (string | number | symbol)[]): LTLComparison<A> {
   if(Array.isArray(pred)) {
-    return {
-      kind: "comparison",
-      pred: (state: A, nextState: A) => pred.every(p => {
+    return new ChangedTagged((state: A, nextState: A) => pred.every(p => {
         if (typeof p === "number" || typeof p === "symbol") {
           // @ts-expect-error
           if (p in state && p in nextState) {
@@ -358,95 +427,153 @@ export function Changed<A>(pred: ((state: A, nextState: A) => boolean) | keyof A
           }
           return !isEqual(stateCurrent, nextStateCurrent);
         }
-      })
-    };
+      }), `[${pred.toString()}]`);
   }
   if(typeof pred === "string" || typeof pred === "number" || typeof pred === "symbol") {
-    return {
-      kind: "comparison",
-      pred: (state: A, nextState: A) => !isEqual(state[pred],nextState[pred])
-    };
+    return new ChangedTagged((state: A, nextState: A) => !isEqual(state[pred], nextState[pred]), pred.toString());
   }
-  return {
-    kind: "comparison",
-    pred
-  };
+  return new ChangedTagged(pred);
 }
 
+class ComparisonTagged<A> implements LTLComparison<A>, Tagged {
+  kind: "comparison"
+  tag?: string
+  tags?: Set<string>
+  constructor(public pred: (state: A, nextState: A) => boolean) {
+    this.kind = "comparison";
+  }
+  toString() {
+    return `Comparison${tagString(this)}(${isLambda(this.pred.toString())})`
+  }
+}
 /**
  *
  * @param pred function to test comparison between two states
  * @returns boolean value of the comparison
  */
 export function Comparison<A>(pred: (state: A, nextState: A) => boolean): LTLComparison<A> {
-  return {
-    kind: "comparison",
-    pred
-  };
+  return new ComparisonTagged(pred);
+}
+
+class EventuallyTagged<A> implements LTLEventually<A>, Tagged {
+  kind: "eventually"
+  tag?: string
+  tags?: Set<string>
+  constructor(public term: LTLFormula<A>, public steps: number) {
+    this.kind = "eventually";
+  }
+  toString() {
+    return `Eventually${tagString(this)}(${this.term.toString()}, ${this.steps})`
+  }
 }
 
 export function Eventually<A>(term: LTLFormula<A> | Predicate<A>, steps: number = 0): LTLEventually<A> {
-  let t1 = typeof term !== "function" ? term : Predicate(term);
-  return {
-    kind: "eventually",
-    steps,
-    term: t1
-  };
+  let t1 = typeof term !== "function" ? term : new PredicateTagged(term);
+  return new EventuallyTagged(t1, steps);
+}
+
+class AlwaysTagged<A> implements LTLAlways<A>, Tagged {
+  kind: "always"
+  tag?: string
+  tags?: Set<string>
+  constructor(public term: LTLFormula<A>, public steps: number) {
+    this.kind = "always";
+  }
+  toString() {
+    return `Always${tagString(this)}(${this.term.toString()}, ${this.steps})`
+  }
 }
 
 export function Always<A>(term: LTLFormula<A> | Predicate<A>, steps: number = 0): LTLAlways<A> {
-  let t1 = typeof term !== "function" ? term : Predicate(term);
-  return {
-    kind: "always",
-    steps,
-    term: t1
-  };
+  let t1 = typeof term !== "function" ? term : new PredicateTagged(term);
+  return new AlwaysTagged(t1, steps);
+}
+
+class UntilTagged<A> implements LTLUntil<A>, Tagged {
+  kind: "until"
+  tag?: string
+  tags?: Set<string>
+  constructor(public condition: LTLFormula<A>, public term: LTLFormula<A>, public steps: number) {
+    this.kind = "until";
+  }
+  toString() {
+    return `Until${tagString(this)}(${this.condition.toString()}, ${this.term.toString()}, ${this.steps})`
+  }
 }
 
 export function Until<A>(condition: LTLFormula<A> | Predicate<A>, term: LTLFormula<A> | Predicate<A>, steps: number = 0): LTLUntil<A> {
-  let t1 = typeof condition !== "function" ? condition : Predicate(condition);
-  let t2 = typeof term !== "function" ? term : Predicate(term);
-  return {
-    kind: "until",
-    steps,
-    condition: t1,
-    term: t2
-  };
+  let t1 = typeof condition !== "function" ? condition : new PredicateTagged(condition);
+  let t2 = typeof term !== "function" ? term : new PredicateTagged(term);
+  return new UntilTagged(t1, t2, steps);
+}
+
+class ReleaseTagged<A> implements LTLRelease<A>, Tagged {
+  kind: "release"
+  tag?: string
+  tags?: Set<string>
+  constructor(public condition: LTLFormula<A>, public term: LTLFormula<A>, public steps: number) {
+    this.kind = "release";
+  }
+  toString() {
+    return `Release${tagString(this)}(${this.condition.toString()}, ${this.term.toString()}, ${this.steps})`
+  }
 }
 
 export function Release<A>(condition: LTLFormula<A> | Predicate<A>, term: LTLFormula<A> | Predicate<A>, steps: number = 0): LTLRelease<A> {
-  let t1 = typeof condition !== "function" ? condition : Predicate(condition);
-  let t2 = typeof term !== "function" ? term : Predicate(term);
-  return {
-    kind: "release",
-    steps,
-    condition: t1,
-    term: t2
-  };
+  let t1 = typeof condition !== "function" ? condition : new PredicateTagged(condition);
+  let t2 = typeof term !== "function" ? term : new PredicateTagged(term);
+  return new ReleaseTagged(t1, t2, steps);
+}
+
+class RequiredNextTagged<A> implements LLTLRequiredNext<A>, Tagged {
+  kind: "req-next"
+  tag?: string
+  tags?: Set<string>
+  constructor(public term: LTLFormula<A>) {
+    this.kind = "req-next";
+  }
+  toString() {
+    return `RequiredNext${tagString(this)}(${this.term.toString()})`
+  }
 }
 
 export function RequiredNext<A>(term: LTLFormula<A> | Predicate<A>): LLTLRequiredNext<A> {
-  let t1 = typeof term !== "function" ? term : Predicate(term);
-  return {
-    kind: "req-next",
-    term: t1
-  };
+  let t1 = typeof term !== "function" ? term : new PredicateTagged(term);
+  return new RequiredNextTagged(t1);
+}
+
+class WeakNextTagged<A> implements LLTLWeakNext<A>, Tagged {
+  kind: "weak-next"
+  tag?: string
+  tags?: Set<string>
+  constructor(public term: LTLFormula<A>) {
+    this.kind = "weak-next";
+  }
+  toString() {
+    return `WeakNext${tagString(this)}(${this.term.toString()})`
+  }
 }
 
 export function WeakNext<A>(term: LTLFormula<A> | Predicate<A>): LLTLWeakNext<A> {
-  let t1 = typeof term !== "function" ? term : Predicate(term);
-  return {
-    kind: "weak-next",
-    term: t1
-  };
+  let t1 = typeof term !== "function" ? term : new PredicateTagged(term);
+  return new WeakNextTagged(t1);
+}
+
+class StrongNextTagged<A> implements LLTLStrongNext<A>, Tagged {
+  kind: "strong-next"
+  tag?: string
+  tags?: Set<string>
+  constructor(public term: LTLFormula<A>) {
+    this.kind = "strong-next";
+  }
+  toString() {
+    return `StrongNext${tagString(this)}(${this.term.toString()})`
+  }
 }
 
 export function StrongNext<A>(term: LTLFormula<A> | Predicate<A>): LLTLStrongNext<A> {
-  let t1 = typeof term !== "function" ? term : Predicate(term);
-  return {
-    kind: "strong-next",
-    term: t1
-  };
+  let t1 = typeof term !== "function" ? term : new PredicateTagged(term);
+  return new StrongNextTagged(t1);
 }
 
 function NegatedFormula<A>(expr: LTLEventually<A> | LTLAlways<A> | LTLUntil<A> | LTLRelease<A>): LTLFormula<A> {
@@ -463,8 +590,8 @@ function NegatedFormula<A>(expr: LTLEventually<A> | LTLAlways<A> | LTLUntil<A> |
 }
 
 export function LeadsTo<A>(condition: LTLFormula<A> | Predicate<A>, term: LTLFormula<A> | Predicate<A>): LTLFormula<A> {
-  let t1 = typeof condition !== "function" ? condition : Predicate(condition);
-  let t2 = typeof term !== "function" ? term : Predicate(term);
+  let t1 = typeof condition !== "function" ? condition : new PredicateTagged(condition);
+  let t2 = typeof term !== "function" ? term : new PredicateTagged(term);
   return Always(Implies(t1, Eventually(t2)));
 }
 
