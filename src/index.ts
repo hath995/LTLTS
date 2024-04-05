@@ -286,8 +286,20 @@ const LTLTrue: LTLTrue = {
     return "True";
   }
 };
+class TrueTagged implements LTLTrue, Tagged {
+  kind: "true"
+  tag?: string
+  tags?: Set<string>
+  constructor() {
+    this.kind = "true";
+  }
+  toString() {
+    return `True${tagString(this)}`
+  }
+}
 export function True(): LTLTrue {
-  return LTLTrue;
+  return new TrueTagged();
+  // return LTLTrue;
 }
 
 const LTLFalse: LTLFalse = {
@@ -297,8 +309,22 @@ const LTLFalse: LTLFalse = {
   }
 };
 
+class FalseTagged implements LTLFalse, Tagged {
+  kind: "false"
+  tag?: string
+  tags?: Set<string>
+  constructor() {
+    this.kind = "false";
+  }
+  toString() {
+    return `False${tagString(this)}`
+  }
+}
+
 export function False(): LTLFalse {
-  return LTLFalse;
+  return new FalseTagged();
+  // return LTLFalse;
+  // return {kind: "false", toString() {return "False"}};
 }
 
 export function isTrue(expr: LTLFormula<any>): expr is LTLTrue {
@@ -596,12 +622,12 @@ export function LeadsTo<A>(condition: LTLFormula<A> | Predicate<A>, term: LTLFor
 }
 
 export function stepTrue<A>(expr: LTLTrue): LTLTrue {
-  return LTLTrue;
+  return new TrueTagged();
 }
 
 export function stepFalse<A>(expr: LTLFalse): LTLFormula<A> {
   let tags = collectTags(expr);
-  return applyTags(LTLFalse, tags);
+  return applyTags(new FalseTagged(), tags);
 }
 
 export function stepPred<A>(expr: LTLPredicate<A> & Tagged, state: A): LTLFormula<A> {
@@ -867,7 +893,7 @@ export function step<A>(expr: LTLFormula<A>, state: A): LTLFormula<A> {
     case "bind":
       return stepBind(expr, state);
     case "true":
-      return LTLTrue;
+      return stepTrue(expr);
     case "false":
       return stepFalse(expr);
     case "and":
