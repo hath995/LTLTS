@@ -384,14 +384,17 @@ describe("ltlEvaluate", () => {
 
   it("should property based test always", () => {
     fc.assert(
-      fc.property(fc.array(fc.integer(), { minLength: 1 }), fc.integer(), fc.integer(), (arr, x, i) => {
+      fc.property(fc.array(fc.integer(), { minLength: 1 }), fc.integer(), (arr, x) => {
         return expect(
           LTL.ltlEvaluate(
             arr,
             LTL.Always((y: number) => y === x, arr.length)
           )
-        ).toEqual(arr.slice(i % arr.length).every((y: number) => y === x) ? LTL.Probably(true) : LTL.Definitely(false));
-      })
+        ).toEqual(arr.every((y: number) => y === x) ? LTL.Probably(true) : LTL.Definitely(false));
+      }), {
+        examples: [[[0,-28],-28]]
+        
+      }
     );
   });
 
@@ -399,7 +402,7 @@ describe("ltlEvaluate", () => {
 
   // })
 
-  xit("should handle eventually always", () => {
+  it("should handle eventually always", () => {
     let phi = (x: number) => x === 3;
     let expr = LTL.Eventually(LTL.Always(phi, 1));
     expect(LTL.ltlEvaluate([2, 2, 3, 3, 3], expr)).toBe(LTL.PT);
@@ -408,8 +411,10 @@ describe("ltlEvaluate", () => {
     for(let s of [2,3,3,2]) {
       res = gen.next(s);
     }
-    console.log(res);
+    // console.log(res);
     expect(LTL.ltlEvaluate([2, 2, 3, 3, 2], expr)).toBe(LTL.PF);
+    let expr2 = LTL.Eventually(LTL.Always(LTL.True(), 0));
+    expect(LTL.ltlEvaluate([3, 3, 3], expr2)).toBe(LTL.PT);
   })
 
   it("should handle until", () => {
@@ -453,6 +458,7 @@ describe("ltlEvaluate", () => {
         )
       )
     ).toEqual(LTL.Definitely(true));
+    expect(LTL.ltlEvaluate([30], LTL.Until((x: number) => x === 30, (x: number) => x === 0, 0))).toEqual(LTL.Probably(false));
   });
 
   it("should handle until and always", () => {
@@ -494,23 +500,24 @@ describe("ltlEvaluate", () => {
   it("should property based test until", () => {
     fc.assert(
       fc.property(fc.array(fc.integer(), { minLength: 1 }), fc.integer(), fc.integer(), (arr, x, y) => {
-        return expect(
-          LTL.ltlEvaluate(
+        let result = LTL.ltlEvaluate(
             arr,
             LTL.Until(
               (z: number) => z === x,
               (z: number) => z === y,
-              arr.length
+              0
             )
-          )
-        ).toEqual(
+          );
+        return expect(result).toEqual(
           arr.some((z: number, i: number) => z === y && arr.slice(0, i).every((z: number) => z === x))
             ? LTL.Definitely(true)
             : arr.every((z: number) => z === x)
               ? LTL.Probably(false)
               : LTL.Definitely(false)
         );
-      })
+      }), {
+        examples: [[[30],30,0]]
+      }
     );
   });
 
@@ -543,11 +550,11 @@ describe("ltlEvaluate", () => {
     let stateTrue = [1,1,1];
     let stateFalse = [1,2,2];
     let term = LTL.Unchanged<number>((a: number,b: number) => a == b);
-    console.log(term.toString());
+    // console.log(term.toString());
     expect(LTL.ltlEvaluate(stateTrue, term)).toEqual(LTL.DT);
     expect(LTL.ltlEvaluate(stateFalse, term)).toEqual(LTL.DF);
     let propUnchanged: LTL.LTLFormula<{val: number}> = LTL.Unchanged("val");
-    console.log(propUnchanged.toString());
+    // console.log(propUnchanged.toString());
     let stateTrueObj = [{val: 1},{val: 1}];
     let stateFalseObj = [{val: 1},{val: 2}];
     expect(LTL.ltlEvaluate(stateTrueObj, propUnchanged)).toEqual(LTL.DT);
@@ -555,7 +562,7 @@ describe("ltlEvaluate", () => {
     let propUnchangedMultiple: LTL.LTLFormula<{a: number, b: number, c: {d: boolean}}> = LTL.Tag("unchangedABCDE",LTL.Unchanged(["a", "b", "c.d","e"]));
     let stateTrueMultiple = [{a: 1, b: 1, c: {d: true},e: [1,2,3]}, {a: 1, b: 1, c: {d: true}, e: [1,2,3]}];
     let stateFalseMultiple = [{a: 1, b: 1, c: {d: true}, e: [1,2,3]}, {a: 1, b: 1, c: {d: true}, e: [1,2,4]}];
-    console.log(propUnchangedMultiple.toString());
+    // console.log(propUnchangedMultiple.toString());
     expect(LTL.ltlEvaluate(stateTrueMultiple, propUnchangedMultiple)).toEqual(LTL.DT);
     expect(LTL.ltlEvaluate(stateFalseMultiple, propUnchangedMultiple)).toEqual(LTL.DF);
   })
@@ -597,10 +604,12 @@ describe("ltlEvaluate", () => {
 
   it("should handle this weird case", () => {
     let states = [0,0,0,0];
-    let term: LTL.LTLFormula<number> = {"kind":"release","term":{"kind":"always","term":{"kind":"true"},"steps":1},"condition":{"kind":"false"},"steps":0};
+    // let term: LTL.LTLFormula<number> = {"kind":"release","term":{"kind":"always","term":{"kind":"true"},"steps":1},"condition":{"kind":"false"},"steps":0};
+    let term: LTL.LTLFormula<number> = LTL.Release(LTL.False(), LTL.Always(LTL.True(), 1), 0);
     expect(LTL.ltlEvaluate(states, term)).toEqual(LTL.PT);
-    let term3: LTL.LTLFormula<number> = {"kind":"always","term":{"kind":"until","term":{"kind":"weak-next","term":{"kind":"true"}},"condition":{"kind":"weak-next","term":{"kind":"true"}},"steps":1},"steps":0}
-    expect(LTL.ltlEvaluate(states, term3)).toEqual(LTL.PF);
+    // let term3: LTL.LTLFormula<number> = {"kind":"always","term":{"kind":"until","term":{"kind":"weak-next","term":{"kind":"true"}},"condition":{"kind":"weak-next","term":{"kind":"true"}},"steps":1},"steps":0}
+    let term3: LTL.LTLFormula<number> = LTL.Always(LTL.Until(LTL.WeakNext(LTL.True()), LTL.WeakNext(LTL.True()), 1), 0);
+    expect(LTL.ltlEvaluate(states, term3)).toEqual(LTL.PT);
   })
 
   it("should handle leads to", () => {
@@ -932,6 +941,7 @@ describe("Tag", () => {
     expect(result.value.tags).toEqual(new Set(["MonotonicTime", "RunningRequired"]))
 
   })
+
   it("should tag false", () => {
     let tagged = LTL.Tag("test", LTL.False());
     let res = LTL.ltlEvaluateGenerator(tagged, 2);

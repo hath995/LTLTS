@@ -701,6 +701,16 @@ export function strongestNext<A>(term1: LTLFormula<A>, term2: LTLFormula<A>) {
   return WeakNext;
 }
 
+export function weakestNext<A>(term1: LTLFormula<A>, term2: LTLFormula<A>) {
+  if (term1.kind === "req-next" || term2.kind === "req-next") {
+    return RequiredNext;
+  }
+  if (term1.kind === "weak-next" || term2.kind === "weak-next") {
+    return WeakNext;
+  }
+  return StrongNext;
+}
+
 export function stepOr<A>(expr: LTLOr<A>, state: A): LTLFormula<A> {
   let term1 = step(expr.term1, state);
   let term2 = step(expr.term2, state);
@@ -805,7 +815,7 @@ export function stepEventually<A>(expr: LTLEventually<A>, state: A): LTLFormula<
     } else if (isFalse(term)) {
       return applyTags(StrongNext(expr), ownTags);
     } else if (isGuarded(term)) {
-      return applyTags(StrongNext(Eventually(expr.term, expr.steps)), ownTags);
+      return step(applyTags(Or(term, StrongNext(Eventually(expr.term, expr.steps))), ownTags),state);
     }
     return Or(term, StrongNext(expr));
   } else {
@@ -815,7 +825,7 @@ export function stepEventually<A>(expr: LTLEventually<A>, state: A): LTLFormula<
     } else if (isFalse(term)) {
       return applyTags(RequiredNext(Eventually(expr.term, expr.steps - 1)), ownTags);
     } else if (isGuarded(term)) {
-      return applyTags(RequiredNext(Eventually(expr.term, expr.steps - 1)), ownTags);
+      return step(applyTags(Or(term, RequiredNext(Eventually(expr.term, expr.steps - 1))), ownTags), state);
     }
     return Or(term, applyTags(RequiredNext(Eventually(expr.term, expr.steps - 1)), ownTags));
   }
