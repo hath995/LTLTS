@@ -1119,11 +1119,20 @@ export function stepResidual<A>(expr: LTLFormula<A>, state: A): LTLFormula<A> {
         throw e;
       }
     case "req-next":
-      return step(expr.term, state);
+      {
+      let ownTags = collectTags(expr);
+      return step(applyTags(expr.term, ownTags), state);
+      }
     case "weak-next":
-      return step(expr.term, state);
+      {
+      let ownTags = collectTags(expr);
+      return step(applyTags(expr.term, ownTags), state);
+      }
     case "strong-next":
-      return step(expr.term, state);
+      {
+      let ownTags = collectTags(expr);
+      return step(applyTags(expr.term, ownTags), state);
+      }
     case "pred":
       return step(expr, state);
     default:
