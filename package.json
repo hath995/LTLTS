@@ -1,14 +1,17 @@
 {
   "name": "@fast-check/ltl",
-  "version": "1.0.0",
+  "version": "0.8.0",
   "description": "",
-  "main": "src/index.ts",
+  "main": "dist/src/index.js",
   "scripts": {
     "test": "npx jest",
     "sample-server": "cd tests/website_tests; python3 -m http.server"
   },
   "author": "",
   "license": "ISC",
+  "files": [
+    "dist"
+  ],
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@types/lodash.isequal": "^4.5.8",
@@ -25,5 +28,8 @@
     "immer": "^10.0.4",
     "json-diff": "^1.0.6",
     "lodash.isequal": "^4.5.0"
+  },
+  "publishConfig": {
+    "registry": "https://nexus.screenmeet.com/repository/sm-npm-private/"
   }
 }

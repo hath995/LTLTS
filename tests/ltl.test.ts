@@ -1089,6 +1089,17 @@ describe("Tag", () => {
 
   });
 
+  it("should propagate tags in implies", () => {
+    let implies = LTL.Tag("FourImpliesTwo", LTL.Implies(LTL.Tag("mod4", LTL.Predicate((x: number) => x % 4 == 0)), LTL.Tag("mod2", LTL.Predicate((x: number) => x % 2 == 0))));
+    let res = LTL.ltlEvaluateGenerator(implies, 8);
+    res.next();
+    expect(res.next().value.tags).toEqual(new Set());
+    let falseImplies = LTL.Tag("fourImpliesThree", LTL.Implies(LTL.Tag("mod4", LTL.Predicate((x: number) => x % 4 == 0)), LTL.Tag("mod3", LTL.Predicate((x: number) => x % 3 == 0))));
+    let res2 = LTL.ltlEvaluateGenerator(falseImplies, 8);
+    res2.next();
+    expect(res2.next().value.tags).toEqual(new Set(["fourImpliesThree","mod3"]));
+  });
+
   it("should propagate tags for any false formula", () => {
     fc.assert(
       fc.property(LTLFormulaArbitrary.term, fc.array(fc.integer(), { minLength: 1 }), (formula, data) => {
