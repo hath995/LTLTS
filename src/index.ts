@@ -19,6 +19,12 @@ export type LTLOr<A> = {
   term2: LTLFormula<A>;
 };
 
+export type LTLImplies<A> = {
+  kind: "implies";
+  term1: LTLFormula<A>;
+  term2: LTLFormula<A>;
+};
+
 export type LTLNot<A> = {
   kind: "not";
   term: LTLFormula<A>;
@@ -93,6 +99,7 @@ export type LTLFormula<A> =
   | LTLFalse
   | LTLAnd<A>
   | LTLOr<A>
+  | LTLImplies<A>
   | LTLNot<A>
   | LTLBind<A>
   | LTLComparison<A>
@@ -274,10 +281,23 @@ export function Not<A>(term1: LTLFormula<A> | Predicate<A>): LTLNot<A> {
   return new NotTagged(t1);
 }
 
-export function Implies<A>(term1: LTLFormula<A> | Predicate<A>, term2: LTLFormula<A> | Predicate<A>): LTLOr<A> {
+class ImpliesTagged<A> implements LTLImplies<A>, Tagged {
+  kind: "implies"
+  tag?: string
+  tags?: Set<string>
+  constructor(public term1: LTLFormula<A>, public term2: LTLFormula<A>) {
+    this.kind = "implies";
+  }
+  toString() {
+    return `Implies${tagString(this)}(${this.term1.toString()}, ${this.term2.toString()})`
+  }
+}
+
+export function Implies<A>(term1: LTLFormula<A> | Predicate<A>, term2: LTLFormula<A> | Predicate<A>): LTLImplies<A> {
   let t1 = typeof term1 !== "function" ? term1 : new PredicateTagged(term1);
   let t2 = typeof term2 !== "function" ? term2 : new PredicateTagged(term2);
-  return Or(Not(t1), t2);
+  // return Or(Not(t1), t2);
+  return new ImpliesTagged(t1, t2);
 }
 
 const LTLTrue: LTLTrue = {
@@ -668,19 +688,36 @@ function applyTags(expr: LTLFormula<any>, tags: Set<string>): LTLFormula<any> {
   // return {...expr, tags: expr.tags ? new Set([...expr.tags,...tags]) : tags};
 }
 
+export function stepImplies<A>(expr: LTLImplies<A>, state: A): LTLFormula<A> {
+  let term1 = step(expr.term1, state);
+  let term2 = step(expr.term2, state);
+  if(isDetermined(term1)) {
+    if(isTrue(term1)) {
+      return applyTags(term2, collectTags(expr));
+    }
+    if(isFalse(term1)) {
+      return True();
+    }
+  }
+  if(isGuarded(term1) && !isGuarded(term2)) {
+    return applyTags(Implies(term1, WeakNext(expr.term2)), collectTags(expr));
+  }
+  if(isGuarded(term2) && isGuarded(term1)) {
+    return applyTags(Implies(term1, term2), collectTags(expr));
+  }
+  throw new Error("GOT TO IMPLIES BAD SITUATION")
+}
+
 export function stepAnd<A>(expr: LTLAnd<A>, state: A): LTLFormula<A> {
-  //console.log("AND", expr.toString());
   let term1 = step(expr.term1, state);
   let term2 = step(expr.term2, state);
 
-  //console.log("ANd Pre","TERM1", term1.toString(), "TERM2", term2.toString());
   if(!isGuarded(term1) && !isDetermined(term1)) {
     term1 = step(term1, state);
   }
   if(!isGuarded(term2) && !isDetermined(term2)) {
     term2 = step(term2, state);
   }
-  //console.log("ANd after","TERM1", term1.toString(), "TERM2", term2.toString());
   if (isFalse(term1) || isFalse(term2)) {
     let ownTags = collectTags(expr);
     let tags = isFalse(term1) && isFalse(term2) ? new Set([...collectTags(term1),...collectTags(term2)]) : isFalse(term1) ? collectTags(term1) : collectTags(term2);
@@ -727,6 +764,13 @@ export function weakestNext<A>(term1: LTLFormula<A>, term2: LTLFormula<A>) {
 export function stepOr<A>(expr: LTLOr<A>, state: A): LTLFormula<A> {
   let term1 = step(expr.term1, state);
   let term2 = step(expr.term2, state);
+
+  if(!isGuarded(term1) && !isDetermined(term1)) {
+    term1 = step(term1, state);
+  }
+  if(!isGuarded(term2) && !isDetermined(term2)) {
+    term2 = step(term2, state);
+  }
   if (isTrue(term1) || isTrue(term2)) {
     return True();
   } else if (isFalse(term1) && isFalse(term2)) {
@@ -960,6 +1004,8 @@ export function step<A>(expr: LTLFormula<A>, state: A): LTLFormula<A> {
       return stepOr(expr, state);
     case "not":
       return stepNot(expr, state);
+    case "implies":
+      return stepImplies(expr, state);
     case "comparison":
       return stepComparison(expr, state);
     case "req-next":
@@ -1000,6 +1046,7 @@ export function isGuarded<A>(expr: LTLFormula<A>): expr is LLTLRequiredNext<A> |
   return expr.kind === "req-next" || expr.kind === "weak-next" || expr.kind === "strong-next" ||
     expr.kind === "and" && isGuarded(expr.term1) && isGuarded(expr.term2) ||
     expr.kind === "or" && isGuarded(expr.term1) && isGuarded(expr.term2) ||
+    expr.kind === "implies" && isGuarded(expr.term1) ||
     expr.kind === "not" && isGuarded(expr.term);
 }
 
@@ -1034,6 +1081,25 @@ export function stepResidual<A>(expr: LTLFormula<A>, state: A): LTLFormula<A> {
       let tags = new Set([...ownTags, ...term1tags, ...term2tags]);
       try {
         return step(applyTags(And(term1, term2), tags), state);
+      } catch (e) {
+        console.warn(e);
+        console.warn(expr);
+        console.warn(term1);
+        console.warn(term2);
+        console.warn(tags);
+        throw e;
+      }
+      }
+    case "implies":
+      {
+      let term1 = stepResidual(expr.term1, state);
+      let term1tags = isFalse(term1) ? collectTags(term1) : new Set<string>();
+      let term2 = isGuarded(expr.term2) ? stepResidual(expr.term2, state) : step(expr.term2, state);
+      // let term2tags = isFalse(term2) ? collectTags(term2) : new Set<string>();
+      let ownTags = collectTags(expr);
+      let tags = new Set([...ownTags, ...term1tags ]);
+      try {
+        return step(applyTags(Implies(term1, term2), tags), state);
       } catch (e) {
         console.warn(e);
         console.warn(expr);
@@ -1089,7 +1155,8 @@ export function ltlEvaluate<A>(states: A[], formula: LTLFormula<A>): Validity {
     }
     i++;
   }
-
+  // console.log("EVALUATE", expr, i, states.length);
+  // console.log("EVALUATE2", expr.toString());
   return evaluateValidity(expr);
 }
 
@@ -1194,6 +1261,10 @@ export function evaluateValidity(expr: LTLFormula<any>): Validity {
     let term1 = evaluateValidity(expr.term1);
     let term2 = evaluateValidity(expr.term2);
     return FVOr(term1, term2);
+  } else if (expr.kind == "implies") {
+    let term1 = evaluateValidity(expr.term1);
+    let term2 = evaluateValidity(expr.term2);
+    return FVOr(FVNot(term1), term2);
   } else if (expr.kind === "not") {
     let term = evaluateValidity(expr.term);
     return FVNot(term);

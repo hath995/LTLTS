@@ -247,6 +247,17 @@ describe("step", () => {
     expect(LTL.step(term, 9)).toEqual(LTL.WeakNext(LTL.Release(term.condition, term.term)));
   });
 
+  it("should handle implies", () => { 
+    let term = LTL.Implies((x: number) => x % 5 == 0, x => x % 2 == 0);  
+    expect(LTL.step(term, 5)).toEqual(LTL.False());
+    expect(LTL.step(term, 10)).toEqual(LTL.True());
+    let term2 = LTL.Implies<number>(LTL.Comparison((m, n) => m == n), n => n % 2 == 0);  
+    let next = LTL.step(term2, 1) as LTL.LTLImplies<number>;
+    expect(next.term2).toEqual(LTL.WeakNext(term2.term2));
+    expect(LTL.stepResidual(LTL.step(term2, 1),1)).toEqual(LTL.False());
+    expect(LTL.stepResidual(LTL.step(term2, 2),2)).toEqual(LTL.True());
+  });
+
 
   // it("should handle And on two temporal formulas", () => {
   //     let term = LTL.And(LTL.Eventually(1, (x: number) => x === 2), LTL.Henceforth(1, (x: number) => x === 2));
@@ -631,7 +642,7 @@ describe("ltlEvaluate", () => {
     expect(LTL.ltlEvaluate([2,2,2], term)).toEqual(LTL.PT);
   })
 
-  it.only("should handle implies", () => {
+  it("should handle implies", () => {
     type TimerModel = { time: number; running: boolean };
     let modelState = {
       time: 0,
@@ -642,10 +653,16 @@ describe("ltlEvaluate", () => {
     gen.next()
     let result = gen.next({time: 1, running: false})
     expect(result.value.validity).toEqual(LTL.DF);
+
     let genFalse = LTL.ltlEvaluateGenerator(term, {time: 1, running: false});
     genFalse.next();
     let resultFalse = genFalse.next({time: 1, running: false});
-    expect(resultFalse.value.validity).toEqual(LTL.DF);
+    expect(resultFalse.value.validity).toEqual(LTL.DT);
+
+    let genTrue = LTL.ltlEvaluateGenerator(term, {time: 1, running: true});
+    genTrue.next();
+    let resultTrue = genTrue.next({time: 2, running: true});
+    expect(resultTrue.value.validity).toEqual(LTL.DT);
   });
 });
 
