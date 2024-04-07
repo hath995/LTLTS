@@ -519,7 +519,7 @@ class UntilTagged<A> implements LTLUntil<A>, Tagged {
   kind: "until"
   tag?: string
   tags?: Set<string>
-  constructor(public condition: LTLFormula<A>, public term: LTLFormula<A>, public steps: number) {
+  constructor(public condition: LTLFormula<A>, public term: LTLFormula<A>, public steps: number = 0) {
     this.kind = "until";
   }
   toString() {
@@ -537,7 +537,7 @@ class ReleaseTagged<A> implements LTLRelease<A>, Tagged {
   kind: "release"
   tag?: string
   tags?: Set<string>
-  constructor(public condition: LTLFormula<A>, public term: LTLFormula<A>, public steps: number) {
+  constructor(public condition: LTLFormula<A>, public term: LTLFormula<A>, public steps: number = 0) {
     this.kind = "release";
   }
   toString() {
@@ -663,12 +663,24 @@ function applyTags(expr: LTLFormula<any>, tags: Set<string>): LTLFormula<any> {
   if (tags.size === 0) {
     return expr;
   }
-  return {...expr, tags: expr.tags ? new Set([...expr.tags,...tags]) : tags};
+  expr.tags = expr.tags ? new Set([...expr.tags,...tags]) : tags
+  return expr;
+  // return {...expr, tags: expr.tags ? new Set([...expr.tags,...tags]) : tags};
 }
 
 export function stepAnd<A>(expr: LTLAnd<A>, state: A): LTLFormula<A> {
+  //console.log("AND", expr.toString());
   let term1 = step(expr.term1, state);
   let term2 = step(expr.term2, state);
+
+  //console.log("ANd Pre","TERM1", term1.toString(), "TERM2", term2.toString());
+  if(!isGuarded(term1) && !isDetermined(term1)) {
+    term1 = step(term1, state);
+  }
+  if(!isGuarded(term2) && !isDetermined(term2)) {
+    term2 = step(term2, state);
+  }
+  //console.log("ANd after","TERM1", term1.toString(), "TERM2", term2.toString());
   if (isFalse(term1) || isFalse(term2)) {
     let ownTags = collectTags(expr);
     let tags = isFalse(term1) && isFalse(term2) ? new Set([...collectTags(term1),...collectTags(term2)]) : isFalse(term1) ? collectTags(term1) : collectTags(term2);
@@ -686,8 +698,9 @@ export function stepAnd<A>(expr: LTLAnd<A>, state: A): LTLFormula<A> {
     let ownTags = collectTags(expr);
     let term1tags = collectTags(term1);
     let term2tags = collectTags(term2);
-    return strongestNext(term1, term2)(applyTags(And(applyTags(term1.term, term1tags), applyTags(term2.term, term2tags)), ownTags));
+    return applyTags(And(applyTags(term1, term1tags), applyTags(term2, term2tags)), ownTags);
   }
+  //console.warn("TERM1", term1.toString(), "TERM2", term2.toString());
   throw new Error("GOT TO AND BAD SITUATION")
 }
 
@@ -731,7 +744,7 @@ export function stepOr<A>(expr: LTLOr<A>, state: A): LTLFormula<A> {
     let ownTags = collectTags(expr);
     let term1tags = collectTags(term1);
     let term2tags = collectTags(term2);
-    return strongestNext(term1, term2)(applyTags(Or(applyTags(term1.term, term1tags), applyTags(term2.term, term2tags)), ownTags));
+    return applyTags(Or(applyTags(term1, term1tags), applyTags(term2, term2tags)), ownTags);
   }
   throw new Error("GOT TO OR BAD SITUATION")
 }
@@ -742,6 +755,32 @@ export function stepNot<A>(expr: LTLNot<A>, state: A): LTLFormula<A> {
     let ownTags = collectTags(expr);
     return step(applyTags(neg, ownTags), state);
   }
+  if(expr.term.kind === "or") {
+    let ownTags = collectTags(expr);
+    return step(applyTags(And(Not(expr.term.term1), Not(expr.term.term2)), ownTags), state);
+  }
+  if(expr.term.kind === "and") {
+    let ownTags = collectTags(expr);
+    return step(applyTags(Or(Not(expr.term.term1), Not(expr.term.term2)), ownTags), state);
+  }
+
+  if(expr.term.kind === "not") {
+    let ownTags = collectTags(expr);
+    return step(applyTags(expr.term.term, ownTags), state);
+  }
+
+  if(expr.term.kind === "req-next") {
+    let ownTags = collectTags(expr);
+    return applyTags(RequiredNext(Not(expr.term.term)), ownTags);
+  }
+  if(expr.term.kind === "weak-next") {
+    let ownTags = collectTags(expr);
+    return applyTags(WeakNext(Not(expr.term.term)), ownTags);
+  }
+  if(expr.term.kind === "strong-next") {
+    let ownTags = collectTags(expr);
+    return applyTags(StrongNext(Not(expr.term.term)), ownTags);
+  }
   let termTags = collectTags(expr.term);
   let term = step(expr.term, state);
   let ownTags = collectTags(expr);
@@ -751,7 +790,16 @@ export function stepNot<A>(expr: LTLNot<A>, state: A): LTLFormula<A> {
   } else if (isFalse(term)) {
     return applyTags(True(), new Set([...ownTags, ...tags,...termTags]));
   } else if (isGuarded(term)) {
-    return strongestNext(term, term)(applyTags(Not(term.term), new Set([...ownTags, ...tags,...termTags])));
+    if(term.kind === "req-next") {
+      return applyTags(RequiredNext(Not(term.term)), new Set([...ownTags, ...tags,...termTags]));
+    }
+    if(term.kind === "weak-next") {
+      return applyTags(WeakNext(Not(term.term)), new Set([...ownTags, ...tags,...termTags]));
+    }
+    if(term.kind === "strong-next") {
+      return applyTags(StrongNext(Not(term.term)), new Set([...ownTags, ...tags,...termTags]));
+    }
+    return applyTags(Not(term), new Set([...ownTags, ...tags,...termTags]));
   }
   return Not(step(expr.term, state));
 }
@@ -949,7 +997,72 @@ export function isTemporalOperator<A>(expr: LTLFormula<A>): expr is LTLEventuall
 }
 
 export function isGuarded<A>(expr: LTLFormula<A>): expr is LLTLRequiredNext<A> | LLTLWeakNext<A> | LLTLStrongNext<A> {
-  return expr.kind === "req-next" || expr.kind === "weak-next" || expr.kind === "strong-next";
+  return expr.kind === "req-next" || expr.kind === "weak-next" || expr.kind === "strong-next" ||
+    expr.kind === "and" && isGuarded(expr.term1) && isGuarded(expr.term2) ||
+    expr.kind === "or" && isGuarded(expr.term1) && isGuarded(expr.term2) ||
+    expr.kind === "not" && isGuarded(expr.term);
+}
+
+export function stepResidual<A>(expr: LTLFormula<A>, state: A): LTLFormula<A> {
+  switch (expr.kind) {
+    case "or":
+      {
+      let term1 = stepResidual(expr.term1, state);
+      let term1tags = isFalse(term1) ? collectTags(term1) : new Set<string>();
+      let term2 = stepResidual(expr.term2, state);
+      let term2tags = isFalse(term2) ? collectTags(term2) : new Set<string>();
+      let ownTags = isFalse(term1) && isFalse(term2) ? collectTags(expr) : new Set<string>();
+      let tags = new Set([...ownTags, ...term1tags, ...term2tags]);
+      try {
+        return step(applyTags(Or(term1, term2), tags), state);
+      } catch (e) {
+        console.warn(e);
+        console.warn(expr);
+        console.warn(term1);
+        console.warn(term2);
+        console.warn(tags);
+        throw e;
+      }
+      }
+    case "and":
+      {
+      let term1 = stepResidual(expr.term1, state);
+      let term1tags = isFalse(term1) ? collectTags(term1) : new Set<string>();
+      let term2 = stepResidual(expr.term2, state);
+      let term2tags = isFalse(term2) ? collectTags(term2) : new Set<string>();
+      let ownTags = collectTags(expr);
+      let tags = new Set([...ownTags, ...term1tags, ...term2tags]);
+      try {
+        return step(applyTags(And(term1, term2), tags), state);
+      } catch (e) {
+        console.warn(e);
+        console.warn(expr);
+        console.warn(term1);
+        console.warn(term2);
+        console.warn(tags);
+        throw e;
+      }
+      }
+    case "not":
+      //Should not be hit, should refactor to avoid this
+      try {
+      return Not(stepResidual(expr.term, state));
+      } catch (e) {
+        console.warn(e);
+        console.warn(expr);
+        throw e;
+      }
+    case "req-next":
+      return step(expr.term, state);
+    case "weak-next":
+      return step(expr.term, state);
+    case "strong-next":
+      return step(expr.term, state);
+    case "pred":
+      return step(expr, state);
+    default:
+      throw new Error(`Unexpected formula in residual computation: ${expr.toString()}`);
+    }
 }
 
 export function isDetermined<A>(expr: LTLFormula<A>): boolean {
@@ -968,7 +1081,8 @@ export function ltlEvaluate<A>(states: A[], formula: LTLFormula<A>): Validity {
   let i = 1;
   while (!isDetermined(expr) && i < states.length) {
     if (isGuarded(expr)) {
-      expr = step(expr.term, states[i]);
+      expr = stepResidual(expr, states[i]);
+      //console.log("After step", expr.toString());
     } else {
       console.warn(expr);
       throw new Error("The formula is not guarded.");
@@ -1108,7 +1222,7 @@ export function* ltlEvaluateGenerator<A>(formula: LTLFormula<A>, state: A): Gene
       yield PartialValidity(expr);
     } else if (isGuarded(expr)) {
       ownTags = collectTags(expr);
-      expr = step(applyTags(expr.term, ownTags), state);
+      expr = stepResidual(applyTags(expr, ownTags), state);
       // console.log("NEXT", expr);
       validity = PartialValidity(expr);
       state = yield validity;

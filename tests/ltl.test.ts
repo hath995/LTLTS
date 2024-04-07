@@ -413,6 +413,7 @@ describe("ltlEvaluate", () => {
     }
     // console.log(res);
     expect(LTL.ltlEvaluate([2, 2, 3, 3, 2], expr)).toBe(LTL.PF);
+    expect(LTL.ltlEvaluate([2, 2, 3, 3, 2, 3], expr)).toBe(LTL.PT);
     let expr2 = LTL.Eventually(LTL.Always(LTL.True(), 0));
     expect(LTL.ltlEvaluate([3, 3, 3], expr2)).toBe(LTL.PT);
   })
@@ -472,6 +473,17 @@ describe("ltlEvaluate", () => {
         )
       )
     ).toEqual(LTL.PT);
+
+    expect(
+      LTL.ltlEvaluate(
+        [2, 2, 2, 3, 3, 2, 3],
+        LTL.Until(
+          (x: number) => x === 2,
+          LTL.Always((x: number) => x === 3, 1),
+          1
+        )
+      )
+    ).toEqual(LTL.DF);
   });
 
   it("should handle release and always", () => {
@@ -618,6 +630,23 @@ describe("ltlEvaluate", () => {
     expect(LTL.ltlEvaluate([1,1,1], term)).toEqual(LTL.PF);
     expect(LTL.ltlEvaluate([2,2,2], term)).toEqual(LTL.PT);
   })
+
+  it.only("should handle implies", () => {
+    type TimerModel = { time: number; running: boolean };
+    let modelState = {
+      time: 0,
+      running: false
+    }
+    let term = LTL.Tag<TimerModel>("RunningRequired", LTL.Implies(LTL.Comparison((state, nextState) => state.time + 1 === nextState.time), (state) => state.running))
+    let gen = LTL.ltlEvaluateGenerator(term, modelState);
+    gen.next()
+    let result = gen.next({time: 1, running: false})
+    expect(result.value.validity).toEqual(LTL.DF);
+    let genFalse = LTL.ltlEvaluateGenerator(term, {time: 1, running: false});
+    genFalse.next();
+    let resultFalse = genFalse.next({time: 1, running: false});
+    expect(resultFalse.value.validity).toEqual(LTL.DF);
+  });
 });
 
 describe("ltlEvaluateGenerator", () => {
@@ -719,6 +748,8 @@ describe("ltlEvaluateGenerator and ltlEvaluate", () => {
       }),
       {
         examples: [
+          [{"kind":"not","term":{"kind":"comparison","pred":(x, y) => x % 4 == 0 && y % 4 == 0}},[0,0,0]],
+          [{"kind":"not","term":{"kind":"weak-next","term":LTL.True()}},[0,0,0]],
           [{ kind: "always", term: { kind: "always", term: { kind: "true" }, steps: 0 }, steps: 0 }, [0]],
           [{ kind: "eventually", term: { kind: "not", term: { kind: "true" } }, steps: 2 }, [0, 0]],
           [
@@ -938,6 +969,7 @@ describe("Tag", () => {
     let gen = LTL.ltlEvaluateGenerator(bothViolated, modelState);
     gen.next()
     let result = gen.next({time: 1, running: false})
+    expect(result.value.validity).toEqual(LTL.DF);
     expect(result.value.tags).toEqual(new Set(["MonotonicTime", "RunningRequired"]))
 
   })
