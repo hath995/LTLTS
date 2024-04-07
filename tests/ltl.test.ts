@@ -648,10 +648,11 @@ describe("ltlEvaluate", () => {
       time: 0,
       running: false
     }
-    let term = LTL.Tag<TimerModel>("RunningRequired", LTL.Implies(LTL.Comparison((state, nextState) => state.time + 1 === nextState.time), (state) => state.running))
+    let term = LTL.Tag<TimerModel>("RunningRequired", LTL.Implies(LTL.Comparison((state, nextState) => state.time + 1 === nextState.time), LTL.Tag("IsRunning", LTL.Predicate((state) => state.running))))
     let gen = LTL.ltlEvaluateGenerator(term, modelState);
     gen.next()
     let result = gen.next({time: 1, running: false})
+    expect(result.value.tags).toEqual(new Set(["RunningRequired", "IsRunning"]));
     expect(result.value.validity).toEqual(LTL.DF);
 
     let genFalse = LTL.ltlEvaluateGenerator(term, {time: 1, running: false});
