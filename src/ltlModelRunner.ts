@@ -2,6 +2,8 @@ import * as LTL from './index';
 import * as immer from 'immer';
 import type { AsyncCommand, Command, ICommand, ModelRunAsyncSetup, ModelRunSetup } from "fast-check";
 import { diff, diffString } from "json-diff"
+import debug from "debug";
+var ltldebug = debug("ltl:modelRunner");
 
 type SetupState<Model, Real> = { model: Model; real: Real };
 /** @internal */
@@ -35,8 +37,8 @@ const genericModelRun = <Model extends object, Real, P, CheckAsync extends boole
             let oldModel = model;
             model = immer.finishDraft(draft) as Model;
             let validity = ltlState.next(model);
-            if (validity.value !== undefined && validity.value.validity.kind === "definitely" && validity.value.validity.value === false) {
-              console.error(validity.value.tags)
+            if (validity.value !== undefined && validity.value.validity.value === false) {
+              ltldebug(validity);
               let oldModelS = JSON.stringify(oldModel, null, 2), newmodelS = JSON.stringify(model, null, 2);
               throw new Error(`LTL property violated: ${Array.from(validity.value.tags)} ${oldModelS} \n\n ${newmodelS} \n\n diff: ${diffString(oldModel, model, {full: true})}`);
             }
@@ -102,6 +104,8 @@ const genericModelRun = <Model extends object, Real, P, CheckAsync extends boole
       },
     };
     const runAsync = async (cmd: AsyncCommand<Model, Real, CheckAsync>, m: Model, r: Real) => {
+      // console.log("MODEL", JSON.stringify(immer.current(m), null, 2));
+      // console.log("REAL", r);
       if (await cmd.check(m)) await cmd.run(m, r);
     };
     return await genericModelRun(setupProducer, cmds, defaultPromise, runAsync, then, ltlProperty);

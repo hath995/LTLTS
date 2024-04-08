@@ -1,4 +1,6 @@
 import isEqual from "lodash.isequal";
+import debug from "debug";
+var ltldebug = debug("ltl");
 
 export type Predicate<A> = (state: A) => boolean;
 
@@ -737,7 +739,6 @@ export function stepAnd<A>(expr: LTLAnd<A>, state: A): LTLFormula<A> {
     let term2tags = collectTags(term2);
     return applyTags(And(applyTags(term1, term1tags), applyTags(term2, term2tags)), ownTags);
   }
-  //console.warn("TERM1", term1.toString(), "TERM2", term2.toString());
   throw new Error("GOT TO AND BAD SITUATION")
 }
 
@@ -1149,6 +1150,7 @@ export function ltlEvaluate<A>(states: A[], formula: LTLFormula<A>): Validity {
     return Definitely(false);
   }
   let expr = step(formula, states[0]);
+  ltldebug("ltlEvaluate start: ", expr.toString());
   if (!isGuarded(expr) && !isDetermined(expr)) {
     console.warn(expr);
     throw new Error("The formula is not guarded.");
@@ -1157,7 +1159,7 @@ export function ltlEvaluate<A>(states: A[], formula: LTLFormula<A>): Validity {
   while (!isDetermined(expr) && i < states.length) {
     if (isGuarded(expr)) {
       expr = stepResidual(expr, states[i]);
-      //console.log("After step", expr.toString());
+      ltldebug("ltlEvaluate step: ", expr.toString());
     } else {
       console.warn(expr);
       throw new Error("The formula is not guarded.");
@@ -1166,7 +1168,7 @@ export function ltlEvaluate<A>(states: A[], formula: LTLFormula<A>): Validity {
   }
   // console.log("EVALUATE", expr, i, states.length);
   // console.log("EVALUATE2", expr.toString());
-  return evaluateValidity(expr);
+  return evaluateValidity(expr)[0];
 }
 
 type PartialValidity = {
@@ -1240,61 +1242,70 @@ export function requiresNext(formula: LTLFormula<any>): boolean {
 
 export function PartialValidity(formula: LTLFormula<any>): PartialValidity {
   if (isDetermined(formula)) {
+    let validity = evaluateValidity(formula);
     return {
       requiresNext: false,
-      validity: evaluateValidity(formula),
-      tags: isFalse(formula) ? collectTags(formula) : new Set()
+      validity: validity[0],
+      tags: isFalse(formula) || !validity[0].value ? new Set([...collectTags(formula), ...validity[1]]) : new Set()
     };
   } else {
+    let validity = evaluateValidity(formula);
     return {
       requiresNext: requiresNext(formula),
-      validity: evaluateValidity(formula),
-      tags: collectTags(formula)
+      validity: validity[0],
+      tags: new Set([...collectTags(formula), ...validity[1]])
     };
   }
 }
 
-export function evaluateValidity(expr: LTLFormula<any>): Validity {
+export function evaluateValidity(expr: LTLFormula<any>): [Validity, Set<string>] {
   if (isDetermined(expr)) {
     if (expr.kind === "true") {
-      return DT;
+      return [DT, new Set()];
     }
     if (expr.kind === "false") {
-      return DF;
+      return [DF, collectTags(expr)];
     }
   } else if (expr.kind == "and") {
     let term1 = evaluateValidity(expr.term1);
     let term2 = evaluateValidity(expr.term2);
-    return FVAnd(term1, term2);
+    let tags = collectTags(expr);
+    let result = FVAnd(term1[0], term2[0]);
+    return [result, new Set([...(!result.value ? tags : new Set<string>()), ...(!term1[0].value ? term1[1]: new Set<string>()), ...(!term2[0].value ? term2[1]: new Set<string>())])];
   } else if (expr.kind == "or") {
     let term1 = evaluateValidity(expr.term1);
     let term2 = evaluateValidity(expr.term2);
-    return FVOr(term1, term2);
+    let tags = collectTags(expr);
+    let result = FVOr(term1[0], term2[0]);
+    return [result, new Set([...(!result.value ? tags : new Set<string>()), ...(!term1[0].value ? term1[1]: new Set<string>()), ...(!term2[0].value ? term2[1]: new Set<string>())])];
   } else if (expr.kind == "implies") {
     let term1 = evaluateValidity(expr.term1);
     let term2 = evaluateValidity(expr.term2);
-    return FVOr(FVNot(term1), term2);
+    let tags = collectTags(expr);
+    let result = FVOr(FVNot(term1[0]), term2[0]);
+    return [result, new Set([...(!result.value ? tags : new Set<string>()), ...(term1[0].value ? term1[1]: new Set<string>()), ...(!term2[0].value ? term2[1]: new Set<string>())])];
   } else if (expr.kind === "not") {
     let term = evaluateValidity(expr.term);
-    return FVNot(term);
+    return [FVNot(term[0]), term[1]];
   } else if (isGuarded(expr)) {
     switch (expr.kind) {
       case "req-next":
-        return PT;
+        //throw error?
+        return [PT, collectTags(expr)];
       case "weak-next":
-        return PT;
+        return [PT, collectTags(expr)];
       case "strong-next":
-        return PF;
+        return [PF, collectTags(expr)];
     }
   }
-  console.warn(expr);
+  console.warn(expr.toString());
   throw new Error("The formula is not guarded or determined.");
 }
 
 export function* ltlEvaluateGenerator<A>(formula: LTLFormula<A>, state: A): Generator<PartialValidity, PartialValidity, A> {
   let ownTags = collectTags(formula);
   let expr = step(applyTags(formula, ownTags), state);
-  // console.log("START", JSON.stringify(expr, null, 2));
+  ltldebug("ltlEvaluateGenerator start: ", expr.toString());
   let validity = PartialValidity(expr);
   state = yield validity;
   while (true) {
@@ -1303,11 +1314,11 @@ export function* ltlEvaluateGenerator<A>(formula: LTLFormula<A>, state: A): Gene
     } else if (isGuarded(expr)) {
       ownTags = collectTags(expr);
       expr = stepResidual(applyTags(expr, ownTags), state);
-      // console.log("NEXT", expr);
+      ltldebug("ltlEvaluateGenerator step", expr.toString());
       validity = PartialValidity(expr);
       state = yield validity;
     } else {
-      console.warn(expr);
+      console.warn(expr.toString());
       throw new Error("The formula is not guarded.");
     }
   }

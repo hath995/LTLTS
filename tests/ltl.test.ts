@@ -665,6 +665,30 @@ describe("ltlEvaluate", () => {
     let resultTrue = genTrue.next({time: 2, running: true});
     expect(resultTrue.value.validity).toEqual(LTL.DT);
   });
+
+  it("should handle implies forever", () => {
+    type CobrowseModel = { remoteControlPresent: boolean; remoteControlActive: boolean; };
+    let rcPresent: LTL.LTLFormula<CobrowseModel> = LTL.Tag("RCPresent", LTL.Predicate(s => s.remoteControlPresent));
+    let np = LTL.Implies(s => !s.remoteControlActive,  LTL.Always( LTL.Not(rcPresent)));
+    function Triggered<A>(pred: LTL.LTLFormula<A>): LTL.LTLFormula<A> {
+      return LTL.Until(LTL.Not(pred), LTL.Always(pred));
+    }
+    let rp = LTL.Implies(s => s.remoteControlActive, Triggered(rcPresent))
+    expect(LTL.ltlEvaluate([{
+      remoteControlPresent: false,
+      remoteControlActive: false
+    }, {remoteControlPresent: false, remoteControlActive: false}, {remoteControlPresent: true, remoteControlActive: false}], np)).toEqual(LTL.DF);
+
+    expect(LTL.ltlEvaluate([{
+      remoteControlPresent: false,
+      remoteControlActive: true
+    }, {remoteControlPresent: false, remoteControlActive: true}, {remoteControlPresent: true, remoteControlActive: true}], rp)).toEqual(LTL.PT);
+
+    expect(LTL.ltlEvaluate([{
+      remoteControlPresent: false,
+      remoteControlActive: true
+    }, {remoteControlPresent: false, remoteControlActive: true}, {remoteControlPresent: true, remoteControlActive: true}, {remoteControlPresent: false, remoteControlActive: true}], rp)).toEqual(LTL.DF);
+  });
 });
 
 describe("ltlEvaluateGenerator", () => {
