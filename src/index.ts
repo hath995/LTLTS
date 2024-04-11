@@ -217,6 +217,44 @@ export function Bind<A>(fn: (state: A) => LTLFormula<A>): LTLFormula<A> {
   return new BindTagged(fn);
 }
 
+export function Contramap<A,B>(fn: (state: A) => B, expr: LTLFormula<B>): LTLFormula<A> {
+  let tags = collectTags(expr);
+  switch(expr.kind) {
+    case "pred":
+      return applyTags(Predicate((state: A) => expr.pred(fn(state))), tags);
+    case "and":
+      return applyTags(And(Contramap(fn, expr.term1), Contramap(fn, expr.term2)), tags);
+    case "or":
+      return applyTags(Or(Contramap(fn, expr.term1), Contramap(fn, expr.term2)), tags);
+    case "implies":
+      return applyTags(Implies(Contramap(fn, expr.term1), Contramap(fn, expr.term2)), tags);
+    case "not":
+      return applyTags(Not(Contramap(fn, expr.term)), tags);
+    case "eventually":
+      return applyTags(Eventually(Contramap(fn, expr.term), expr.steps), tags);
+    case "always":
+      return applyTags(Always(Contramap(fn, expr.term), expr.steps), tags);
+    case "until":
+      return applyTags(Until(Contramap(fn, expr.condition), Contramap(fn, expr.term), expr.steps), tags);
+    case "release":
+      return applyTags(Release(Contramap(fn, expr.condition), Contramap(fn, expr.term), expr.steps), tags);
+    case "comparison":
+      return applyTags(Comparison((state: A, nextState: A) => expr.pred(fn(state), fn(nextState))), tags);
+    case "bind":
+      return applyTags(Bind((state: A) => Contramap(fn, expr.fn(fn(state)))), tags);
+    case "req-next":
+      return applyTags(RequiredNext(Contramap(fn, expr.term)), tags);
+    case "weak-next":
+      return applyTags(WeakNext(Contramap(fn, expr.term)), tags);
+    case "strong-next":
+      return applyTags(StrongNext(Contramap(fn, expr.term)), tags);
+    case "true":
+      return applyTags(True(), tags);
+    case "false":
+      return applyTags(False(), tags);
+  }
+}
+
 class AndTagged<A> implements LTLAnd<A>, Tagged {
   kind: "and"
   tag?: string

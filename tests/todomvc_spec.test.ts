@@ -327,6 +327,11 @@ describe('TodoMVC', () => {
                 if (page === undefined) {
                   page = await driver.newPage();
                 }
+                await page.setRequestInterception(true);
+                page.on("request", (request) => {
+                    console.log(request.url());
+                    request.continue();
+                });
                 await page.goto(url);
                 return {
                   model: InitialModelState,
