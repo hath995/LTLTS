@@ -276,6 +276,9 @@ class AndTagged<A> implements LTLAnd<A>, Tagged {
  */
 export function And<A>(...rest: (LTLFormula<A> | Predicate<A>)[]): LTLAnd<A>
 export function And<A>(term1: LTLFormula<A> | Predicate<A>, term2: LTLFormula<A> | Predicate<A>, ...rest: (LTLFormula<A> | Predicate<A>)[]): LTLAnd<A> {
+  if(term1 === undefined) {
+    throw new Error("LTL And requires at least one argument");
+  }
   let t1 = typeof term1 !== "function" ? term1 : new PredicateTagged(term1);
   if(term2 === undefined) {
     return And(t1, True());
@@ -301,6 +304,9 @@ class OrTagged<A> implements LTLOr<A>, Tagged {
 
 export function Or<A>(...rest: (LTLFormula<A> | Predicate<A>)[]): LTLOr<A>
 export function Or<A>(term1: LTLFormula<A> | Predicate<A>, term2: LTLFormula<A> | Predicate<A>, ...rest: (LTLFormula<A> | Predicate<A>)[]): LTLOr<A> {
+  if(term1 === undefined) {
+    throw new Error("LTL Or requires at least one argument");
+  }
   let t1 = typeof term1 !== "function" ? term1 : new PredicateTagged(term1);
   if(term2 === undefined) {
     return Or(False(), t1);

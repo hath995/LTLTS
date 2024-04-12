@@ -1169,14 +1169,13 @@ describe.only("Contramap", () => {
     }
 
     let PageProps: LTL.LTLFormula<TPage> = LTL.And(
-      LTL.Tag("pageLoadFirst", LTL.Implies(p => p.sessionStarted, p => p.sessionStarted)),
+      LTL.Tag("pageLoadFirst", LTL.Implies(p => p.sessionStarted, p => p.loaded)),
       LTL.Tag("EventuallyLoaded", LTL.Eventually(p => p.loaded))
     )
 
     let PagePropsAll: LTL.LTLFormula<TestModel> = LTL.Always(LTL.Bind(m => {
       let pageProps = m.pages.map((p, index) => LTL.Contramap<TestModel, TPage>(q => q.pages[index], PageProps)); 
       if(pageProps.length === 0) return LTL.True();
-      if(pageProps.length === 1) return pageProps[0];
       return LTL.And(...pageProps);
     }));
 
@@ -1195,8 +1194,20 @@ describe.only("Contramap", () => {
     let StatesAbsurd: TestModel[] = [
       {pages: [{loaded: true, sessionStarted: false}, {loaded: false, sessionStarted: false}, {loaded: false, sessionStarted: false}]},
       {pages: [{loaded: false, sessionStarted: true}, {loaded: true, sessionStarted: false}, {loaded: true, sessionStarted: false}]},
-      {pages: [{loaded: true, sessionStarted: false}, {loaded: true, sessionStarted: false}, {loaded: false, sessionStarted: false}]}
+      {pages: [{loaded: true, sessionStarted: false}, {loaded: true, sessionStarted: false}, {loaded: true, sessionStarted: false}]}
     ]; 
-    expect(LTL.ltlEvaluate(StatesAbsurd, PagePropsAll)).toEqual(LTL.PF);
+    expect(LTL.ltlEvaluate(StatesAbsurd, PagePropsAll)).toEqual(LTL.DF);
+    let StatesOnePage: TestModel[] = [
+      {pages: [{loaded: true, sessionStarted: false}]},
+      {pages: [{loaded: true, sessionStarted: false}]},
+      {pages: [{loaded: true, sessionStarted: true}]}
+    ];
+    expect(LTL.ltlEvaluate(StatesOnePage, PagePropsAll)).toEqual(LTL.PT);
+    let StatesNoPages: TestModel[] = [
+      {pages: []},
+      {pages: []},
+      {pages: []}
+    ];
+    expect(LTL.ltlEvaluate(StatesNoPages, PagePropsAll)).toEqual(LTL.PT);
   });
 })
