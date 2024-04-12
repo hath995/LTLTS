@@ -274,8 +274,12 @@ class AndTagged<A> implements LTLAnd<A>, Tagged {
  * @param rest Additional formulas to be evaluated
  * @returns 
  */
+export function And<A>(...rest: (LTLFormula<A> | Predicate<A>)[]): LTLAnd<A>
 export function And<A>(term1: LTLFormula<A> | Predicate<A>, term2: LTLFormula<A> | Predicate<A>, ...rest: (LTLFormula<A> | Predicate<A>)[]): LTLAnd<A> {
   let t1 = typeof term1 !== "function" ? term1 : new PredicateTagged(term1);
+  if(term2 === undefined) {
+    return And(t1, True());
+  }
   let t2 = typeof term2 !== "function" ? term2 : new PredicateTagged(term2);
   if(rest.length > 0) {
     return And(t1, And(t2, rest[0], ...rest.slice(1)));
@@ -295,8 +299,12 @@ class OrTagged<A> implements LTLOr<A>, Tagged {
   }
 }
 
+export function Or<A>(...rest: (LTLFormula<A> | Predicate<A>)[]): LTLOr<A>
 export function Or<A>(term1: LTLFormula<A> | Predicate<A>, term2: LTLFormula<A> | Predicate<A>, ...rest: (LTLFormula<A> | Predicate<A>)[]): LTLOr<A> {
   let t1 = typeof term1 !== "function" ? term1 : new PredicateTagged(term1);
+  if(term2 === undefined) {
+    return Or(False(), t1);
+  }
   let t2 = typeof term2 !== "function" ? term2 : new PredicateTagged(term2);
   if(rest.length > 0) {
     return Or(t1, Or(t2, rest[0], ...rest.slice(1)));

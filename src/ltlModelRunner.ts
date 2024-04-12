@@ -40,7 +40,7 @@ const genericModelRun = <Model extends object, Real, P, CheckAsync extends boole
             if (validity.value !== undefined && validity.value.validity.value === false) {
               ltldebug(validity);
               let oldModelS = JSON.stringify(oldModel, null, 2), newmodelS = JSON.stringify(model, null, 2);
-              throw new Error(`LTL property violated: ${Array.from(validity.value.tags)} ${oldModelS} \n\n ${newmodelS} \n\n diff: ${diffString(oldModel, model, {full: true})}`);
+              throw new Error(`LTL property violated: ${Array.from(validity.value.tags)} ${oldModelS} \n\n ${newmodelS} \n\n diff: ${diffString(oldModel, model, {full: true})} \n\nProperties violated: ${Array.from(validity.value.tags)}`);
             }
             return newState;
           });
