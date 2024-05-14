@@ -1,6 +1,12 @@
 # @fast-check/LTL
 
-Add the ability to test models with [fast-check](https://fast-check.dev/) using [linear temporal logic](https://en.wikipedia.org/wiki/Linear_temporal_logic). Based on the work of [Oskar Wickstrom](https://quickstrom.io/) and [Liam O'Connor](https://arxiv.org/pdf/2203.11532.pdf).
+Add the ability to test programs using model-based testing with [fast-check](https://fast-check.dev/) using [linear temporal logic](https://en.wikipedia.org/wiki/Linear_temporal_logic). Based on the work of [Oskar Wickstrom](https://quickstrom.io/) and [Liam O'Connor](https://arxiv.org/pdf/2203.11532.pdf).
+
+There is a gap in modern testing frameworks. Unit tests only show the absence of bugs on specific example problems / data. Property based testing allows testing if some function obeys certain predicates for random input data. 
+
+However, many programs are stateful and long living, and so testing them usually boils down to testing finite examples of state transitions. We can define either a model to represent the program state as operations on that program are applied or inspect the program state directly as we apply feasible actions within the program. 
+
+Linear Temporal logic allows specifying how a state evolves over time. Applying predicate functions to the model state or to the program state to find either that the state satify the boolean functions as time and further random valid inputs are applied.
 
 ## Install
 
@@ -52,7 +58,7 @@ npm i --save-dev \@fast-check/LTL
     fc.assert(
       fc.property(fc.commands(allCommands, {}), (cmds) => {
         const s = () => ({ model: { num: 0 }, real: new Queue() });
-        let sizeUpdatesByOneOrUnchanged: LTL.LTLFormula<Model> = LTL.Henceforth(
+        let sizeUpdatesByOneOrUnchanged: LTL.LTLFormula<Model> = LTL.Always(
           LTL.Or(
             LTL.Tag("monotonicTime", LTL.Or(
               LTL.Unchanged((state, nextState) => state.num === nextState.num),
@@ -78,19 +84,19 @@ npm i --save-dev \@fast-check/LTL
 * [`ltlEvaluateGenerator`](#ltlEvaluateGenerator) - Evaluates a linear temporal logic expression on a given state and provide generator to continue evaluating the temporal logic as new states are generate
 
 * [`Predicate`](#Predicate) - Creates predicate function (returns boolean) on state 
-* [`Unchanged`](#Unchanged) - Create predicate function to compare if two states are equal
-* [`Comparison`](#Comparison) - Create predicate functions to compare if two states maintain some relationship
-* [`Eventually`](#Eventually) - Create expression with the eventually operator.
-* [`Until`](#Until) - Create expression with the until operator.
-* [`Release`](#Release) - Create expression with the release operator.
-* [`Henceforth`](#Henceforth) - Create expression with the henceforth operator.
+* [`Unchanged`](#Unchanged) - Create predicate function to compare if two states or state fields are equal
+* [`Comparison`](#Comparison) - Create predicate functions to compare if two consecutive states maintain some relationship
+* [`Next`](#Next) - Create expression to test if the next state satisies a predicate
+* [`Eventually`](#Eventually) - Create will be satisified if the supplied predicate eventually is true
+* [`Until`](#Until) - Create expression which holds that the first parameter holds true until the second parameter is true, and the first parameter is false
+* [`Release`](#Release) - Create expression which holds that the first parameter holds true until the second parameter is true
+* [`Always`](#Always) - Create expression which always holds true after
 * [`And`](#And) - Create expression with the logical AND operation.
 * [`Or`](#Or) - Create expression with the logical OR operation.
 * [`Not`](#Not) - Create expression with the logical NOT operation.
 * [`Implies`](#Implies) - Create expression with the logical IMPLIES operation.
 * [`True`](#True) - Create expression with the logical TRUE value.
 * [`False`](#False) - Create expression with the logical FALSE value.
-* [`Next`](#Next) - Create expression with the next state operator.
 
 ## Methods
 

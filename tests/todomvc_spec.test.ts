@@ -317,7 +317,6 @@ describe('TodoMVC', () => {
         await fc.assert(
           fc.asyncProperty(fc.commands(commands, { size: "+2" }), async (cmds) => {
               console.log(`Running test, ${url}`, i++);
-              // await wait(1000);
               let setup: () => Promise<{
                 model: TodoMVCModel;
                 real: TodoMVCInstance;

@@ -95,6 +95,47 @@ export type LLTLStrongNext<A> = {
 
 export type Tagged = {tag?: string, tags?: Set<string>};
 
+type Withable<A, B> = LTLAnd<A> & { 
+  with: (condition: (B | Predicate<B>), formula: LTLFormula<A>) => Withable<A,B> 
+  exhaustive(): LTLAnd<A>
+};
+class Matchable<A,B> implements Withable<A,B> {
+  kind: "and";
+  term1: LTLFormula<A>;
+  term2: LTLFormula<A>;
+
+  constructor(public selFn: (m: A) => B, term1?: LTLFormula<A>, term2?: LTLFormula<A>, public conditions: LTLFormula<A>[] = []){
+    this.kind = "and";
+    this.term1 = term1 != undefined ? term1 : Tag("MatchTermUndefined", True());
+    this.term2 = term2 != undefined ? term2 : Tag("MatchTermUndefined", True());
+  }
+
+  with(condition: B | Predicate<B>, formula: LTLFormula<A>): Withable<A, B> {
+    let pred: LTLFormula<A> = condition instanceof Function ? Predicate(a => condition(this.selFn(a))) : Predicate(s => isEqual(this.selFn(s),condition));
+    if(this.term1.tag === "MatchTermUndefined") {
+      this.term1 = Implies(pred, formula);
+      this.conditions.push(pred);
+      return this;
+    }else if(this.term2.tag === "MatchTermUndefined") {
+      this.term2 = Implies(condition instanceof Function ? Predicate(a => condition(this.selFn(a))) : Predicate(s => isEqual(this.selFn(s),condition)), formula);
+      this.conditions.push(pred);
+      return this;
+    }else{
+      return new Matchable(this.selFn, this, Implies(condition instanceof Function ? Predicate(a => condition(this.selFn(a))) : Predicate(s => isEqual(this.selFn(s),condition)), formula), this.conditions.concat([pred]));
+    }
+  }
+
+  exhaustive() {
+    let formula: LTLFormula<A> = Tag("InexhaustiveMatch", Or(...this.conditions)); 
+    return And(this, formula);
+  }
+
+}
+
+export function Match<A, B>(slFn: (m: A) => B): Withable<A,B> {
+  return new Matchable(slFn);
+}
+
 export type LTLFormula<A> =
   (| LTLPredicate<A>
   | LTLTrue

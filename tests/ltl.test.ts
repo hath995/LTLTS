@@ -1158,7 +1158,7 @@ describe("Tag", () => {
   });
 });
 
-describe.only("Contramap", () => {
+describe("Contramap", () => {
   it("should contramap a predicate", () => {
     type TPage = {
       loaded: boolean;
@@ -1209,5 +1209,136 @@ describe.only("Contramap", () => {
       {pages: []}
     ];
     expect(LTL.ltlEvaluate(StatesNoPages, PagePropsAll)).toEqual(LTL.PT);
+  });
+})
+
+describe("Match", () => {
+
+  type TodoMatchTest = {
+    todoCount: null | number;
+    numItems: number;
+  };
+
+  it("should allow adding multiple match conditions and evaluate correctly", ()=>{
+
+      // LTL.And(
+      //     LTL.Implies(m => m.todoCount === null, LTL.False()),
+      //     LTL.Implies(m => m.todoCount === 0, LTL.Next(n => n.numItems === 0)),
+      //     LTL.Implies(m => m.todoCount! > 0, LTL.Comparison((m, n) => n.numItems === m.numItems + m.todoCount!))
+      // ))
+      var expr = LTL.Match((s: TodoMatchTest) => s.todoCount)
+      .with(null, LTL.False())
+      .with(0, LTL.Next(n => n.numItems === 0))
+      .with(m => m != null && m > 0, LTL.Comparison((m, n) => n.numItems === m.numItems + m.todoCount!));
+
+      expect(LTL.ltlEvaluate([{
+        todoCount: null,
+        numItems: 0
+      }], expr)).toEqual(LTL.DF)
+
+
+      expect(LTL.ltlEvaluate([{
+        todoCount: 0,
+        numItems: 0
+      }, {
+        todoCount: 0,
+        numItems: 0
+      }], expr)).toEqual(LTL.DT)
+
+      expect(LTL.ltlEvaluate([{
+        todoCount: 0,
+        numItems: 0
+      }, {
+        todoCount: 0,
+        numItems: 2
+      }], expr)).toEqual(LTL.DF)
+
+
+      expect(LTL.ltlEvaluate([{
+        todoCount: 1,
+        numItems: 1
+      }, {
+        todoCount: 0,
+        numItems: 2
+      }], expr)).toEqual(LTL.DT)
+
+      expect(LTL.ltlEvaluate([{
+        todoCount: 1,
+        numItems: 1
+      }, {
+        todoCount: 0,
+        numItems: 0
+      }], expr)).toEqual(LTL.DF)
+  })
+
+  it("should match exhaustively", () => {
+      var expr = LTL.Match((s: TodoMatchTest) => s.todoCount)
+      .with(null, LTL.False())
+      .with(0,  LTL.Next(n => n.numItems === 0))
+      .with(m => m != null && m > 0 && m < 10, LTL.Comparison((m, n) => n.numItems === m.numItems + m.todoCount!))
+      .exhaustive();
+
+      expect(LTL.ltlEvaluate([{
+        todoCount: 0,
+        numItems: 0
+      }, {
+        todoCount: 0,
+        numItems: 0
+      }], expr)).toEqual(LTL.DT)
+
+      expect(LTL.ltlEvaluate([{
+        todoCount: 9,
+        numItems: 0
+      }, {
+        todoCount: 0,
+        numItems: 9
+      }], expr)).toEqual(LTL.DT)
+
+      expect(LTL.ltlEvaluate([{
+        todoCount: 10,
+        numItems: 0
+      }, {
+        todoCount: 0,
+        numItems: 10
+      }], expr)).toEqual(LTL.DF)
+
+      expect(LTL.ltlEvaluate([{
+        todoCount: null,
+        numItems: 0
+      }], expr)).toEqual(LTL.DF)
+
+
+      expect(LTL.ltlEvaluate([{
+        todoCount: 0,
+        numItems: 0
+      }, {
+        todoCount: 0,
+        numItems: 0
+      }], expr)).toEqual(LTL.DT)
+
+      expect(LTL.ltlEvaluate([{
+        todoCount: 0,
+        numItems: 0
+      }, {
+        todoCount: 0,
+        numItems: 2
+      }], expr)).toEqual(LTL.DF)
+
+
+      expect(LTL.ltlEvaluate([{
+        todoCount: 1,
+        numItems: 1
+      }, {
+        todoCount: 0,
+        numItems: 2
+      }], expr)).toEqual(LTL.DT)
+
+      expect(LTL.ltlEvaluate([{
+        todoCount: 1,
+        numItems: 1
+      }, {
+        todoCount: 0,
+        numItems: 0
+      }], expr)).toEqual(LTL.DF)
   });
 })
