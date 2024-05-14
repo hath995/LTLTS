@@ -96,7 +96,7 @@ export type LLTLStrongNext<A> = {
 export type Tagged = {tag?: string, tags?: Set<string>};
 
 type Withable<A, B> = LTLAnd<A> & { 
-  with: (condition: (B | Predicate<B>), formula: LTLFormula<A>) => Withable<A,B> 
+  with: (condition: (B | Predicate<B>), formula: LTLFormula<A> | Predicate<A>) => Withable<A,B> 
   exhaustive(): LTLAnd<A>
 };
 class Matchable<A,B> implements Withable<A,B> {
@@ -110,7 +110,7 @@ class Matchable<A,B> implements Withable<A,B> {
     this.term2 = term2 != undefined ? term2 : Tag("MatchTermUndefined", True());
   }
 
-  with(condition: B | Predicate<B>, formula: LTLFormula<A>): Withable<A, B> {
+  with(condition: B | Predicate<B>, formula: LTLFormula<A> | Predicate<A>): Withable<A, B> {
     let pred: LTLFormula<A> = condition instanceof Function ? Predicate(a => condition(this.selFn(a))) : Predicate(s => isEqual(this.selFn(s),condition));
     if(this.term1.tag === "MatchTermUndefined") {
       this.term1 = Implies(pred, formula);
