@@ -14,3 +14,12 @@ node_modules/
 
 # Ignore log files
 *.log
+*.dll
+*.cs
+*.exe
+*.pdb
+*.runtimeconfig.json
+*.deps.json
+*.csproj
+*.sln
+obj/
