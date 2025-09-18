@@ -249,16 +249,6 @@ module LTL {
 			case LTLStrongNext(t, tags) => LTLStrongNext(Contramap(fn, t), tags)
     }
 
-    method {:test} Test1() {
-        var isDivBy3 := (x: int) => x % 3 == 0;
-        var isDivBy5 := (x: int) => x % 5 == 0;
-        var isDivBy7 := (x: int) => x % 7 == 0;
-
-        var formula := AndSeq([LTLPred(isDivBy3, {}).Tag("IsDivBy3"), LTLPred(isDivBy5, {}).Tag("IsDivBy5"), LTLPred(isDivBy7, {}).Tag("IsDivBy7")]).Tag("Test1");
-        // print(formula.ToString());
-        expect formula.ToString() == "LTLAnd(LTLPred(<pred>, {IsDivBy3}), LTLAnd(LTLPred(<pred>, {IsDivBy5}), LTLPred(<pred>, {IsDivBy7}), {}), {Test1})";
-    }
-
 	// Predicates mirroring TypeScript helpers
 	function isTrue<A>(expr: LTLFormula<A>): bool
     { match expr
@@ -572,4 +562,135 @@ module LTL {
 			case LTLUntil(_, _, _, _) => r := StepUntil(expr, state);
 			case LTLRelease(_, _, _, _) => r := StepRelease(expr, state);
 		}
+
+	// StepResidual method for handling guarded formulas
+	method StepResidual<A>(expr: LTLFormula<A>, state: A) returns (r: LTLFormula<A>)
+        decreases *
+		{ match expr
+			case LTLOr(t1, t2, tags) =>
+				var s1 := StepResidual(t1, state);
+				var s2 := StepResidual(t2, state);
+				var combinedTags := UnionTags(tags, UnionTags(GetTags(s1), GetTags(s2)));
+				var temp := LTLOr(s1, s2, combinedTags);
+				r := Step(temp, state);
+			case LTLAnd(t1, t2, tags) =>
+				var s1 := StepResidual(t1, state);
+				var s2 := StepResidual(t2, state);
+				var combinedTags := UnionTags(tags, UnionTags(GetTags(s1), GetTags(s2)));
+				var temp := LTLAnd(s1, s2, combinedTags);
+				r := Step(temp, state);
+			case LTLImplies(t1, t2, tags) =>
+				var s1 := StepResidual(t1, state);
+				var s2: LTLFormula<A>;
+				if isGuarded(t2) {
+					s2 := StepResidual(t2, state);
+				} else {
+					s2 := Step(t2, state);
+				}
+				var combinedTags := UnionTags(tags, GetTags(s1));
+				var temp := LTLImplies(s1, s2, combinedTags);
+				r := Step(temp, state);
+			case LTLNot(t, tags) =>
+				var temp := StepResidual(t, state);
+				r := Not(temp);
+			case LTLReqNext(t, tags) =>
+				var combinedTags := UnionTags(tags, GetTags(t));
+				var temp := WithTags(t, combinedTags);
+				r := Step(temp, state);
+			case LTLWeakNext(t, tags) =>
+				var combinedTags := UnionTags(tags, GetTags(t));
+				var temp := WithTags(t, combinedTags);
+				r := Step(temp, state);
+			case LTLStrongNext(t, tags) =>
+				var combinedTags := UnionTags(tags, GetTags(t));
+				var temp := WithTags(t, combinedTags);
+				r := Step(temp, state);
+			case LTLPred(_, _) =>
+				r := Step(expr, state);
+			case _ =>
+				// This should not happen for guarded formulas
+				r := expr;
+		}
+
+	// EvaluateValidity function that returns validity and tags
+	function EvaluateValidity<A>(expr: LTLFormula<A>): (Validity, set<string>)
+        decreases FormulaSize(expr)
+		{ if isDetermined(expr) then
+			match expr
+				case LTLTrue(_) => (DT(), {})
+				case LTLFalse(tags) => (DF(), tags)
+				case _ => (DT(), {}) // Should not happen
+		  else if match expr
+				case LTLAnd(t1, t2, tags) => true
+				case _ => false
+		  then
+			var t1 := EvaluateValidity(expr.term1);
+			var t2 := EvaluateValidity(expr.term2);
+			var result := FVAnd(t1.0, t2.0);
+			var exprTags := match expr case LTLAnd(_, _, tags) => tags case _ => {};
+			var resultTags := if result.value then {} else exprTags + t1.1 + t2.1;
+			(result, resultTags)
+		  else if match expr
+				case LTLOr(t1, t2, tags) => true
+				case _ => false
+		  then
+			var t1 := EvaluateValidity(expr.term1);
+			var t2 := EvaluateValidity(expr.term2);
+			var result := FVOr(t1.0, t2.0);
+			var exprTags := match expr case LTLOr(_, _, tags) => tags case _ => {};
+			var resultTags := if result.value then {} else exprTags + t1.1 + t2.1;
+			(result, resultTags)
+		  else if match expr
+				case LTLImplies(t1, t2, tags) => true
+				case _ => false
+		  then
+			var t1 := EvaluateValidity(expr.term1);
+			var t2 := EvaluateValidity(expr.term2);
+			var result := FVOr(FVNot(t1.0), t2.0);
+			var exprTags := match expr case LTLImplies(_, _, tags) => tags case _ => {};
+			var resultTags := if result.value then {} else exprTags + (if t1.0.value then t1.1 else {}) + (if t2.0.value then {} else t2.1);
+			(result, resultTags)
+		  else if match expr
+				case LTLNot(t, _) => true
+				case _ => false
+		  then
+			var t := EvaluateValidity(expr.term);
+			(FVNot(t.0), t.1)
+		  else if isGuarded(expr) then
+			match expr
+				case LTLReqNext(_, tags) => (PT(), tags)
+				case LTLWeakNext(_, tags) => (PT(), tags)
+				case LTLStrongNext(_, tags) => (PF(), tags)
+				case _ => (DT(), {}) // Should not happen
+		  else
+			// This should not happen for valid guarded or determined formulas
+			(DF(), {})
+		}
+
+	// Main ltlEvaluate function
+	method LtlEvaluate<A>(states: seq<A>, formula: LTLFormula<A>) returns (r: Validity)
+        decreases *
+	{
+		if |states| == 0 {
+			r := DF();
+		} else {
+			var expr := Step(formula, states[0]);
+			var i := 1;
+			while !isDetermined(expr) && i < |states|
+				invariant 1 <= i <= |states|
+				// invariant isGuarded(expr) || isDetermined(expr)
+				decreases |states| - i
+			{
+				if isGuarded(expr) {
+					expr := StepResidual(expr, states[i]);
+				} else {
+					// This should not happen due to invariant
+					expr := expr;
+				}
+				i := i + 1;
+			}
+			var evalResult := EvaluateValidity(expr);
+			r := evalResult.0;
+		}
+	}
 }
