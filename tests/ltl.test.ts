@@ -691,6 +691,180 @@ describe("ltlEvaluate", () => {
   });
 });
 
+describe("evaluateValidity", () => {
+  it("should handle true", () => {
+    const result = LTL.evaluateValidity(LTL.True());
+    expect(result[0]).toEqual(LTL.DT);
+    expect(result[1]).toEqual(new Set());
+  });
+
+  it("should handle false", () => {
+    const result = LTL.evaluateValidity(LTL.False());
+    expect(result[0]).toEqual(LTL.DF);
+    expect(result[1]).toEqual(new Set());
+  });
+
+  it("should handle and", () => {
+    const result = LTL.evaluateValidity(LTL.And(LTL.True(), LTL.True()));
+    expect(result[0]).toEqual(LTL.DT);
+    expect(result[1]).toEqual(new Set());
+  });
+
+  it("should handle or", () => {
+    const result = LTL.evaluateValidity(LTL.Or(LTL.True(), LTL.False()));
+    expect(result[0]).toEqual(LTL.DT);
+    expect(result[1]).toEqual(new Set());
+  });
+
+  it("should handle not", () => {
+    const result = LTL.evaluateValidity(LTL.Not(LTL.True()));
+    expect(result[0]).toEqual(LTL.DF);
+    expect(result[1]).toEqual(new Set());
+  });
+
+  it("should handle req next", () => {
+    const result = LTL.evaluateValidity(LTL.RequiredNext(LTL.True()));
+    expect(result[0]).toEqual(LTL.PT);
+    expect(result[1]).toEqual(new Set());
+  });
+
+  it("should handle weak next", () => {
+    const result = LTL.evaluateValidity(LTL.WeakNext(LTL.True()));
+    expect(result[0]).toEqual(LTL.PT);
+    expect(result[1]).toEqual(new Set());
+  });
+
+  it("should handle strong next", () => {
+    const result = LTL.evaluateValidity(LTL.StrongNext(LTL.True()));
+    expect(result[0]).toEqual(LTL.PF);
+    expect(result[1]).toEqual(new Set());
+  });
+
+  it("should handle predicate", () => {
+    const result = LTL.evaluateValidity(LTL.Predicate((x: number) => x === 1));
+    expect(result[0]).toEqual(LTL.DF);
+    expect(result[1]).toEqual(new Set());
+  });
+
+  it("should handle eventually", () => {
+    const result = LTL.evaluateValidity(LTL.Eventually((x: number) => x === 1, 1));
+    expect(result[0]).toEqual(LTL.DF);
+    expect(result[1]).toEqual(new Set());
+  });
+
+  it("should handle always", () => {
+    const result = LTL.evaluateValidity(LTL.Always((x: number) => x === 1, 1));
+    expect(result[0]).toEqual(LTL.DF);
+    expect(result[1]).toEqual(new Set());
+  });
+
+  it("should handle until", () => {
+    const result = LTL.evaluateValidity(LTL.Until((x: number) => x === 1, (x: number) => x === 2, 1));
+    expect(result[0]).toEqual(LTL.DF);
+    expect(result[1]).toEqual(new Set());
+  });
+
+  it("should handle release", () => {
+    const result = LTL.evaluateValidity(LTL.Release((x: number) => x === 1, (x: number) => x === 2, 1));
+    expect(result[0]).toEqual(LTL.DF);
+    expect(result[1]).toEqual(new Set());
+  });
+
+  it("should handle bind", () => {
+    const result = LTL.evaluateValidity(LTL.Bind<number>(x => LTL.True()));
+    expect(result[0]).toEqual(LTL.DF);
+    expect(result[1]).toEqual(new Set());
+  });
+
+  it("should handle comparison", () => {
+    const result = LTL.evaluateValidity(LTL.Comparison((x: number, y: number) => x === y));
+    expect(result[0]).toEqual(LTL.DF);
+    expect(result[1]).toEqual(new Set());
+  });
+});
+
+describe("requiresNext", () => {
+  it("should return false for true", () => {
+    expect(LTL.requiresNext(LTL.True())).toBe(false);
+  });
+
+  it("should return false for false", () => {
+    expect(LTL.requiresNext(LTL.False())).toBe(false);
+  });
+
+  it("should return false for predicate", () => {
+    expect(LTL.requiresNext(LTL.Predicate((x: number) => x === 1))).toBe(false);
+  });
+
+  it("should return true for req next", () => {
+    expect(LTL.requiresNext(LTL.RequiredNext(LTL.True()))).toBe(true);
+  });
+
+  it("should return false for weak next", () => {
+    expect(LTL.requiresNext(LTL.WeakNext(LTL.True()))).toBe(false);
+  });
+
+  it("should return false for strong next", () => {
+    expect(LTL.requiresNext(LTL.StrongNext(LTL.True()))).toBe(false);
+  });
+
+  it("should return false for eventually", () => {
+    expect(LTL.requiresNext(LTL.Eventually((x: number) => x === 1, 1))).toBe(false);
+  });
+
+  it("should return true for eventually with next", () => {
+    expect(LTL.requiresNext(LTL.Eventually(LTL.RequiredNext(LTL.True()), 1))).toBe(true);
+  });
+
+  it("should return false for always", () => {
+    expect(LTL.requiresNext(LTL.Always((x: number) => x === 1, 1))).toBe(false);
+  });
+
+  it("should return true for always with next", () => {
+    expect(LTL.requiresNext(LTL.Always(LTL.RequiredNext(LTL.True()), 1))).toBe(true);
+  });
+
+  it("should return false for and", () => {
+    expect(LTL.requiresNext(LTL.And(LTL.True(), LTL.False()))).toBe(false);
+  });
+
+  it("should return true for and with next", () => {
+    expect(LTL.requiresNext(LTL.And(LTL.True(), LTL.RequiredNext(LTL.True())))).toBe(true);
+  });
+
+  it("should return false for or", () => {
+    expect(LTL.requiresNext(LTL.Or(LTL.True(), LTL.False()))).toBe(false);
+  });
+
+  it("should return true for or with next", () => {
+    expect(LTL.requiresNext(LTL.Or(LTL.True(), LTL.RequiredNext(LTL.True())))).toBe(true);
+  });
+
+  it("should return false for not", () => {
+    expect(LTL.requiresNext(LTL.Not(LTL.True()))).toBe(false);
+  });
+
+  it("should return true for not with next", () => {
+    expect(LTL.requiresNext(LTL.Not(LTL.RequiredNext(LTL.True())))).toBe(true);
+  });
+
+  it("should return false for until", () => {
+    expect(LTL.requiresNext(LTL.Until((x: number) => x === 1, (x: number) => x === 2, 1))).toBe(false);
+  });
+
+  it("should return true for until with next", () => {
+    expect(LTL.requiresNext(LTL.Until(LTL.True(), LTL.RequiredNext(LTL.True()), 1))).toBe(true);
+  });
+
+  it("should return false for release", () => {
+    expect(LTL.requiresNext(LTL.Release((x: number) => x === 1, (x: number) => x === 2, 1))).toBe(false);
+  });
+
+  it("should return true for release with next", () => {
+    expect(LTL.requiresNext(LTL.Release(LTL.True(), LTL.RequiredNext(LTL.True()), 1))).toBe(true);
+  });
+});
+
 describe("ltlEvaluateGenerator", () => {
   it("should handle eventually", () => {
     let gen = LTL.ltlEvaluateGenerator<number>(

@@ -175,6 +175,10 @@ module LTL {
 		| Definitely(value: bool)
 		| Probably(value: bool)
 
+	// PartialValidity type for intermediate evaluation results
+	datatype PartialValidity =
+		| PartialValidity(requiresNext: bool, validity: Validity, tags: set<string>)
+
 	function DT(): Validity { Definitely(true) }
 	function PT(): Validity { Probably(true) }
 	function PF(): Validity { Probably(false) }
@@ -294,6 +298,23 @@ module LTL {
 
 	function isDetermined<A>(expr: LTLFormula<A>): bool
     { isTrue(expr) || isFalse(expr) }
+
+	// Determines if a formula requires the next state to be evaluated
+	function RequiresNext<A>(expr: LTLFormula<A>): bool
+        decreases FormulaSize(expr)
+    { match expr
+        case LTLReqNext(_, _) => true
+        case LTLWeakNext(_, _) => false
+        case LTLStrongNext(_, _) => false
+        case LTLEventually(term, _, _) => RequiresNext(term)
+        case LTLAlways(term, _, _) => RequiresNext(term)
+        case LTLUntil(condition, term, _, _) => RequiresNext(condition) || RequiresNext(term)
+        case LTLRelease(condition, term, _, _) => RequiresNext(condition) || RequiresNext(term)
+        case LTLAnd(term1, term2, _) => RequiresNext(term1) || RequiresNext(term2)
+        case LTLOr(term1, term2, _) => RequiresNext(term1) || RequiresNext(term2)
+        case LTLNot(term, _) => RequiresNext(term)
+        case _ => false
+    }
 
 	// Tag utilities
 	function GetTags<A>(expr: LTLFormula<A>): set<string>
@@ -432,26 +453,26 @@ module LTL {
 			case _ => r := expr;
 		}
 
+	// TODO: implement not transformations
 	method StepNot<A>(expr: LTLFormula<A>, state: A) returns (r: LTLFormula<A>)
+		requires expr.LTLNot?
         decreases *
-		{ match expr
-			case LTLNot(t, tags) =>
-				if isTemporalOperator(t) {
-					var negated := WithTags(NegatedFormula(t), tags);
-					r := Step(negated, state);
+		{
+			if isTemporalOperator(expr.term) {
+				var negated := WithTags(NegatedFormula(expr.term), expr.tags);
+				r := Step(negated, state);
+			} else {
+				var stepped := Step(expr.term, state);
+				if isTrue(stepped) {
+					r := LTLFalse(expr.tags + GetTags(stepped) + GetTags(expr.term));
+				} else if isFalse(stepped) {
+					r := LTLTrue(expr.tags + GetTags(stepped) + GetTags(expr.term));
+				} else if isGuarded(stepped) {
+					r := LTLNot(stepped, expr.tags + GetTags(stepped) + GetTags(expr.term));
 				} else {
-					var stepped := Step(t, state);
-					if isTrue(stepped) {
-						r := LTLFalse(UnionTags(tags, GetTags(stepped)));
-					} else if isFalse(stepped) {
-						r := LTLTrue({});
-					} else if isGuarded(stepped) {
-						r := LTLNot(stepped, UnionTags(tags, GetTags(stepped)));
-					} else {
-						r := LTLNot(stepped, tags);
-					}
+					r := LTLNot(stepped, expr.tags + GetTags(stepped) + GetTags(expr.term));
 				}
-			case _ => r := expr;
+			}
 		}
 
 	method StepImplies<A>(expr: LTLFormula<A>, state: A) returns (r: LTLFormula<A>)
@@ -612,59 +633,92 @@ module LTL {
 				r := expr;
 		}
 
-	// EvaluateValidity function that returns validity and tags
+	// EvaluateValidity function that returns validity and tags (Dafny version)
 	function EvaluateValidity<A>(expr: LTLFormula<A>): (Validity, set<string>)
         decreases FormulaSize(expr)
+		{ match expr
+			case LTLTrue(tags) => (DT(), {})
+			case LTLFalse(tags) => (DF(), tags)
+			case LTLAnd(t1, t2, tags) =>
+				var eval1 := EvaluateValidity(t1);
+				var eval2 := EvaluateValidity(t2);
+				var result := FVAnd(eval1.0, eval2.0);
+				var resultTags := if result.value then {} else tags + eval1.1 + eval2.1;
+				(result, resultTags)
+			case LTLOr(t1, t2, tags) =>
+				var eval1 := EvaluateValidity(t1);
+				var eval2 := EvaluateValidity(t2);
+				var result := FVOr(eval1.0, eval2.0);
+				var resultTags := if result.value then {} else tags + eval1.1 + eval2.1;
+				(result, resultTags)
+			case LTLImplies(t1, t2, tags) =>
+				var eval1 := EvaluateValidity(t1);
+				var eval2 := EvaluateValidity(t2);
+				var result := FVOr(FVNot(eval1.0), eval2.0);
+				var resultTags := if result.value then {} else tags + (if eval1.0.value then eval1.1 else {}) + (if eval2.0.value then {} else eval2.1);
+				(result, resultTags)
+			case LTLNot(t, tags) =>
+				var eval := EvaluateValidity(t);
+				(FVNot(eval.0), eval.1)
+			case LTLReqNext(_, tags) => (PT(), tags)
+			case LTLWeakNext(_, tags) => (PT(), tags)
+			case LTLStrongNext(_, tags) => (PF(), tags)
+			case _ =>
+				// All non-determined cases: LTLPred, LTLBind, LTLComparison, LTLEventually, LTLAlways, LTLRelease, LTLUntil
+				// These should not happen in normal evaluation of determined formulas
+				var tags := GetTags(expr);
+				(DF(), tags)
+		}
+
+	function EvaluateValidityTS<A>(expr: LTLFormula<A>): (Validity, set<string>)
+        decreases FormulaSize(expr)
+		{ match expr
+			case LTLTrue(tags) => (DT(), {})
+			case LTLFalse(tags) => (DF(), tags)
+			case LTLAnd(t1, t2, tags) =>
+				var eval1 := EvaluateValidityTS(t1);
+				var eval2 := EvaluateValidityTS(t2);
+				var result := FVAnd(eval1.0, eval2.0);
+				var resultTags := if result.value then {} else tags + (if eval1.0.value then {} else eval1.1) + (if eval2.0.value then {} else eval2.1);
+				(result, resultTags)
+			case LTLOr(t1, t2, tags) =>
+				var eval1 := EvaluateValidityTS(t1);
+				var eval2 := EvaluateValidityTS(t2);
+				var result := FVOr(eval1.0, eval2.0);
+				var resultTags := if result.value then {} else tags + (if eval1.0.value then {} else eval1.1) + (if eval2.0.value then {} else eval2.1);
+				(result, resultTags)
+			case LTLImplies(t1, t2, tags) =>
+				var eval1 := EvaluateValidityTS(t1);
+				var eval2 := EvaluateValidityTS(t2);
+				var result := FVOr(FVNot(eval1.0), eval2.0);
+				var resultTags := if result.value then {} else tags + (if eval1.0.value then eval1.1 else {}) + (if eval2.0.value then {} else eval2.1);
+				(result, resultTags)
+			case LTLNot(t, tags) =>
+				var eval := EvaluateValidityTS(t);
+				(FVNot(eval.0), eval.1)
+			case LTLReqNext(_, tags) => (PT(), tags)
+			case LTLWeakNext(_, tags) => (PT(), tags)
+			case LTLStrongNext(_, tags) => (PF(), tags)
+			case _ =>
+				// All non-determined cases: LTLPred, LTLBind, LTLComparison, LTLEventually, LTLAlways, LTLRelease, LTLUntil
+				// These should not happen in normal evaluation of determined formulas
+				var tags := GetTags(expr);
+				(DF(), tags)
+		}
+
+	// PartialValidity function that creates a PartialValidity from a formula
+	function CreatePartialValidity<A>(expr: LTLFormula<A>): PartialValidity
+        decreases FormulaSize(expr)
 		{ if isDetermined(expr) then
-			match expr
-				case LTLTrue(_) => (DT(), {})
-				case LTLFalse(tags) => (DF(), tags)
-				case _ => (DT(), {}) // Should not happen
-		  else if match expr
-				case LTLAnd(t1, t2, tags) => true
-				case _ => false
-		  then
-			var t1 := EvaluateValidity(expr.term1);
-			var t2 := EvaluateValidity(expr.term2);
-			var result := FVAnd(t1.0, t2.0);
-			var exprTags := match expr case LTLAnd(_, _, tags) => tags case _ => {};
-			var resultTags := if result.value then {} else exprTags + t1.1 + t2.1;
-			(result, resultTags)
-		  else if match expr
-				case LTLOr(t1, t2, tags) => true
-				case _ => false
-		  then
-			var t1 := EvaluateValidity(expr.term1);
-			var t2 := EvaluateValidity(expr.term2);
-			var result := FVOr(t1.0, t2.0);
-			var exprTags := match expr case LTLOr(_, _, tags) => tags case _ => {};
-			var resultTags := if result.value then {} else exprTags + t1.1 + t2.1;
-			(result, resultTags)
-		  else if match expr
-				case LTLImplies(t1, t2, tags) => true
-				case _ => false
-		  then
-			var t1 := EvaluateValidity(expr.term1);
-			var t2 := EvaluateValidity(expr.term2);
-			var result := FVOr(FVNot(t1.0), t2.0);
-			var exprTags := match expr case LTLImplies(_, _, tags) => tags case _ => {};
-			var resultTags := if result.value then {} else exprTags + (if t1.0.value then t1.1 else {}) + (if t2.0.value then {} else t2.1);
-			(result, resultTags)
-		  else if match expr
-				case LTLNot(t, _) => true
-				case _ => false
-		  then
-			var t := EvaluateValidity(expr.term);
-			(FVNot(t.0), t.1)
-		  else if isGuarded(expr) then
-			match expr
-				case LTLReqNext(_, tags) => (PT(), tags)
-				case LTLWeakNext(_, tags) => (PT(), tags)
-				case LTLStrongNext(_, tags) => (PF(), tags)
-				case _ => (DT(), {}) // Should not happen
+			var validity := EvaluateValidityTS(expr);
+			var formulaTags := GetTags(expr);
+			var resultTags := if isFalse(expr) || !validity.0.value then formulaTags + validity.1 else {};
+			PartialValidity(false, validity.0, resultTags)
 		  else
-			// This should not happen for valid guarded or determined formulas
-			(DF(), {})
+			var validity := EvaluateValidityTS(expr);
+			var formulaTags := GetTags(expr);
+			var resultTags := formulaTags + validity.1;
+			PartialValidity(RequiresNext(expr), validity.0, resultTags)
 		}
 
 	// Main ltlEvaluate function
@@ -692,5 +746,28 @@ module LTL {
 			var evalResult := EvaluateValidity(expr);
 			r := evalResult.0;
 		}
+	}
+
+	method LtlEvalState<A>(state: A, formula: LTLFormula<A>) returns (validity: PartialValidity, expr: LTLFormula<A>)
+		decreases *
+	{
+		// print("\n");
+		// print(formula);
+		// print("\n");
+		// print(state);
+		// print("\n");
+		// print("Stepping");
+		if isGuarded(formula) {
+			expr := StepResidual(formula, state);
+		} else {
+			expr := Step(formula, state);
+		}
+		// print("\n");
+		// print(expr);
+		// print("\n");
+		// print("Creating partial validity");
+		validity := CreatePartialValidity(expr);
+		// print("\n");
+		// print(validity);
 	}
 }

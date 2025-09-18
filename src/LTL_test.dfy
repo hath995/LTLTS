@@ -495,7 +495,7 @@ module ContramapTests {
                 // assume p == ((x: A) => p(Id(x)));
                 // assert Contramap(Id, LTLPred(p, tags)) == LTLPred((a: A) => p(Id(a)), tags);
                 //This property is not provable in Dafny because of the lack of function extensionality
-                assume Contramap(Id, LTLPred(p, tags)) == LTLPred(p, tags);
+                assume {:axiom} Contramap(Id, LTLPred(p, tags)) == LTLPred(p, tags);
                 assert Contramap(Id, expr) == expr;
             case LTLTrue(tags) =>
                 assert Contramap(Id, expr) == expr;
@@ -518,12 +518,12 @@ module ContramapTests {
             case LTLBind(f, tags) =>
                 // assert f == ((a: A) => f(Id(a)));
                 //This property is not provable in Dafny because of the lack of function extensionality
-                assume Contramap(Id, LTLBind(f, tags)) == LTLBind(f, tags);
+                assume {:axiom} Contramap(Id, LTLBind(f, tags)) == LTLBind(f, tags);
                 assert Contramap(Id, expr) == expr;
             case LTLComparison(c, tags) =>
                 // assert c == ((s: A, n: A) => c(Id(s), Id(n)));
                 //This property is not provable in Dafny because of the lack of function extensionality
-                assume Contramap(Id, LTLComparison(c, tags)) == LTLComparison(c, tags);
+                assume {:axiom} Contramap(Id, LTLComparison(c, tags)) == LTLComparison(c, tags);
                 assert Contramap(Id, expr) == expr;
             case LTLEventually(t, steps, tags) =>
                 assert Contramap(Id, LTLEventually(t, steps, tags)) == LTLEventually(Contramap(Id, t), steps, tags);
@@ -587,7 +587,7 @@ module ContramapTests {
             //This property is not provable in Dafny because of the lack of function extensionality
             //Though we can prove it in Dafny if we take an arbitrary a and prove the property for it
             // See: ContramapCompositionPredicate(f, g, expr, a);
-            assume Contramap(g, Contramap(f, expr)) == Contramap(Compose(f, g), expr);
+            assume {:axiom} Contramap(g, Contramap(f, expr)) == Contramap(Compose(f, g), expr);
             // assert Contramap(g, Contramap(f, expr)) == Contramap(Compose(f, g), expr);
 
         case LTLTrue(tags) =>
@@ -632,7 +632,7 @@ module ContramapTests {
             // We need to prove this for all possible results of fn
             // See: ContramapCompositionBind(f, g, expr, a);
         
-            assume Contramap(g, Contramap(f, expr)) == Contramap(Compose(f, g), expr);
+            assume {:axiom} Contramap(g, Contramap(f, expr)) == Contramap(Compose(f, g), expr);
 
         case LTLComparison(cmp, tags) =>
             // Contramap(g, Contramap(f, LTLComparison(cmp, tags)))
@@ -642,7 +642,7 @@ module ContramapTests {
             // = Contramap(Compose(f, g), LTLComparison(cmp, tags))
             //This property is not provable in Dafny because of the lack of function extensionality
             // See: ContramapCompositionComparison(f, g, expr, a1, a2);
-            assume Contramap(g, Contramap(f, expr)) == Contramap(Compose(f, g), expr);
+            assume {:axiom} Contramap(g, Contramap(f, expr)) == Contramap(Compose(f, g), expr);
             // assert Contramap(g, Contramap(f, expr)) == Contramap(Compose(f, g), expr);
 
         case LTLEventually(t, steps, tags) =>
@@ -763,6 +763,163 @@ module TagTests {
         expect "tag2" in union;
         expect "tag3" in union;
         expect |union| == 3;
+    }
+    
+    method {:test} TestTag_SimpleEval()
+        decreases *
+    {
+        var formula := False<TestState>().Tag("test");
+        var validity, expr := LtlEvalState(TestState(1), formula);
+        expect validity.tags == {"test"};
+    }
+    
+    method {:test} TestTag_Predicate()
+        decreases *
+    {
+        var pred := PredOf<TestState>((s: TestState) => s.value == 1);
+        var tagged := pred.Tag("test");
+        var validity, expr := LtlEvalState(TestState(2), tagged);
+        expect validity.tags == {"test"};
+    }
+    
+    method {:test} TestTag_Comparison()
+        decreases *
+    {
+        var comp := ComparisonOf<TestState>((s: TestState, n: TestState) => s.value == n.value);
+        var tagged := comp.Tag("test");
+        var validity1, expr := LtlEvalState(TestState(2), tagged);
+        var validity2, expr2 := LtlEvalState(TestState(3), expr);
+        expect validity2.tags == {"test"};
+    }
+    
+    method {:test} TestTag_Not()
+        decreases *
+    {
+        var not := Not<TestState>(True<TestState>());
+        var tagged := not.Tag("test");
+        var validity, expr := LtlEvalState(TestState(1), tagged);
+        expect validity.tags == {"test"};
+    }
+    
+    method {:test} TestTag_NotWithPredicate()
+        decreases *
+    {
+        var pred := PredOf<TestState>((s: TestState) => s.value == 1);
+        var not := Not<TestState>(pred.Tag("test"));
+        var validity, expr := LtlEvalState(TestState(1), not);
+        expect validity.tags == {"test"};
+    }
+    
+    method {:test} TestTag_NestedNots()
+        decreases *
+    {
+        var pred := PredOf((s: TestState) => s.value == 1);
+        var not := Not(Not(Not(pred.Tag("test"))));
+        var validity, expr := LtlEvalState(TestState(1), not);
+        expect validity.tags == {"test"};
+    }
+    
+    method {:test} TestTag_And()
+        decreases *
+    {
+        var pred1 := PredOf<TestState>((s: TestState) => s.value == 1);
+        var pred2 := PredOf<TestState>((s: TestState) => s.value == 2);
+        var and := And<TestState>(pred1.Tag("one"), pred2.Tag("two"));
+        
+        // Test with state 1 - should get "two" tag
+        var validity1, expr1 := LtlEvalState(TestState(1), and);
+        expect validity1.tags == {"two"};
+        
+        // Test with state 2 - should get "one" tag
+         var validity2, expr2 := LtlEvalState(TestState(2), and);
+        expect validity2.tags == {"one"};
+        
+        // Test with state 3 - should get both tags
+        var validity3, expr3 := LtlEvalState(TestState(3), and);
+        expect validity3.tags == {"one", "two"};
+        
+        // Test with top-level tag
+        var topAnd := and.Tag("top");
+        var validity4, expr4 := LtlEvalState(TestState(2), topAnd);
+        expect validity4.tags == {"top", "one"};
+    }
+    
+    method {:test} TestTag_Or()
+        decreases *
+    {
+        var pred1 := PredOf<TestState>((s: TestState) => s.value == 1);
+        var pred2 := PredOf<TestState>((s: TestState) => s.value == 2);
+        var or := Or<TestState>(pred1.Tag("one"), pred2.Tag("two"));
+        
+        // Test with state 1 - should get no tags (true)
+        var validity1, expr1 := LtlEvalState(TestState(1), or);
+        expect validity1.tags == {};
+        
+        // Test with state 2 - should get no tags (true)
+        var validity2, expr2 := LtlEvalState(TestState(2), or);
+        expect validity2.tags == {};
+        
+        // Test with state 3 - should get both tags (false)
+        var validity3, expr3 := LtlEvalState(TestState(3), or);
+        expect validity3.tags == {"one", "two"};
+        
+        // Test with top-level tag
+        var topOr := or.Tag("top");
+        var validity4, expr4 := LtlEvalState(TestState(3), topOr);
+        expect validity4.tags == {"top", "one", "two"};
+    }
+    
+    method {:test} TestTag_Until()
+        decreases *
+    {
+        var pred1 := PredOf<TestState>((s: TestState) => s.value == 1);
+        var pred2 := PredOf<TestState>((s: TestState) => s.value == 2);
+        var until := Until<TestState>(pred1.Tag("isOne"), pred2.Tag("isTwo"), 1).Tag("OnethenTwo");
+        
+        // Test with state 1 - should get "OnethenTwo" and "isTwo" tags
+        var validity1, expr1 := LtlEvalState(TestState(1), until);
+        expect validity1.tags == {"OnethenTwo", "isTwo"};
+        
+        // Test with state 2 - should get no tags (true)
+        var validity2, expr2 := LtlEvalState(TestState(2), until);
+        expect validity2.tags == {};
+        
+        // Test with state 3 - should get all tags (false)
+        var validity3, expr3 := LtlEvalState(TestState(3), until);
+        expect validity3.tags == {"OnethenTwo", "isTwo", "isOne"};
+    }
+    
+    method {:test} TestTag_Always()
+        decreases *
+    {
+        var pred := PredOf<TestState>((s: TestState) => s.value == 1);
+        var always := Always<TestState>(pred.Tag("isOne"), 1).Tag("AlwaysOne");
+        
+        // Test with state 1 - should get "AlwaysOne" tag
+        var validity1, expr1 := LtlEvalState(TestState(1), always);
+        expect validity1.tags == {"AlwaysOne"};
+        
+        // Test with state 2 - should get both tags
+        var validity2, expr2 := LtlEvalState(TestState(2), always);
+        expect validity2.tags == {"AlwaysOne", "isOne"};
+    }
+    
+    method {:test} TestTag_Implies()
+        decreases *
+    {
+        var pred1 := PredOf<TestState>((s: TestState) => s.value % 4 == 0);
+        var pred2 := PredOf<TestState>((s: TestState) => s.value % 2 == 0);
+        var implies := Implies<TestState>(pred1.Tag("mod4"), pred2.Tag("mod2")).Tag("FourImpliesTwo");
+        
+        // Test with state 8 - should get no tags (true)
+        var validity1, expr1 := LtlEvalState(TestState(8), implies);
+        expect validity1.tags == {};
+        
+        // Test with false implication
+        var pred3 := PredOf<TestState>((s: TestState) => s.value % 3 == 0);
+        var falseImplies := Implies<TestState>(pred1.Tag("mod4"), pred3.Tag("mod3")).Tag("fourImpliesThree");
+        var validity2, expr2 := LtlEvalState(TestState(8), falseImplies);
+        expect validity2.tags == {"fourImpliesThree", "mod3"};
     }
 }
 
@@ -916,5 +1073,382 @@ module LtlEvaluateTests {
     {
         var result := LtlEvaluate([], True<TestState>());
         expect result == DF();
+    }
+}
+
+module PartialValidityTests {
+    import opened LTL
+    
+    datatype TestState = TestState(value: int)
+
+    method {:test} TestRequiresNext_True()
+        decreases *
+    {
+        var result := RequiresNext(True<TestState>());
+        expect !result;
+    }
+
+    method {:test} TestRequiresNext_False()
+        decreases *
+    {
+        var result := RequiresNext(False<TestState>());
+        expect !result;
+    }
+
+    method {:test} TestRequiresNext_Predicate()
+        decreases *
+    {
+        var result := RequiresNext(PredOf<TestState>((s: TestState) => s.value == 1));
+        expect !result;
+    }
+
+    method {:test} TestRequiresNext_ReqNext()
+        decreases *
+    {
+        var result := RequiresNext(ReqNext<TestState>(True<TestState>()));
+        expect result;
+    }
+
+    method {:test} TestRequiresNext_WeakNext()
+        decreases *
+    {
+        var result := RequiresNext(WeakNext<TestState>(True<TestState>()));
+        expect !result;
+    }
+
+    method {:test} TestRequiresNext_StrongNext()
+        decreases *
+    {
+        var result := RequiresNext(StrongNext<TestState>(True<TestState>()));
+        expect !result;
+    }
+
+    method {:test} TestRequiresNext_Eventually()
+        decreases *
+    {
+        var result := RequiresNext(Eventually<TestState>(True<TestState>(), 1));
+        expect !result;
+    }
+
+    method {:test} TestRequiresNext_EventuallyWithNext()
+        decreases *
+    {
+        var result := RequiresNext(Eventually<TestState>(ReqNext<TestState>(True<TestState>()), 1));
+        expect result;
+    }
+
+    method {:test} TestRequiresNext_Always()
+        decreases *
+    {
+        var result := RequiresNext(Always<TestState>(True<TestState>(), 1));
+        expect !result;
+    }
+
+    method {:test} TestRequiresNext_AlwaysWithNext()
+        decreases *
+    {
+        var result := RequiresNext(Always<TestState>(ReqNext<TestState>(True<TestState>()), 1));
+        expect result;
+    }
+
+    method {:test} TestRequiresNext_And()
+        decreases *
+    {
+        var result := RequiresNext(And<TestState>(True<TestState>(), False<TestState>()));
+        expect !result;
+    }
+
+    method {:test} TestRequiresNext_AndWithNext()
+        decreases *
+    {
+        var result := RequiresNext(And<TestState>(True<TestState>(), ReqNext<TestState>(False<TestState>())));
+        expect result;
+    }
+
+    method {:test} TestRequiresNext_Or()
+        decreases *
+    {
+        var result := RequiresNext(Or<TestState>(True<TestState>(), False<TestState>()));
+        expect !result;
+    }
+
+    method {:test} TestRequiresNext_OrWithNext()
+        decreases *
+    {
+        var result := RequiresNext(Or<TestState>(True<TestState>(), ReqNext<TestState>(False<TestState>())));
+        expect result;
+    }
+
+    method {:test} TestRequiresNext_Not()
+        decreases *
+    {
+        var result := RequiresNext(Not<TestState>(True<TestState>()));
+        expect !result;
+    }
+
+    method {:test} TestRequiresNext_NotWithNext()
+        decreases *
+    {
+        var result := RequiresNext(Not<TestState>(ReqNext<TestState>(True<TestState>())));
+        expect result;
+    }
+
+    method {:test} TestRequiresNext_Until()
+        decreases *
+    {
+        var result := RequiresNext(Until<TestState>(True<TestState>(), False<TestState>(), 1));
+        expect !result;
+    }
+
+    method {:test} TestRequiresNext_UntilWithNext()
+        decreases *
+    {
+        var result := RequiresNext(Until<TestState>(True<TestState>(), ReqNext<TestState>(False<TestState>()), 1));
+        expect result;
+    }
+
+    method {:test} TestRequiresNext_Release()
+        decreases *
+    {
+        var result := RequiresNext(Release<TestState>(True<TestState>(), False<TestState>(), 1));
+        expect !result;
+    }
+
+    method {:test} TestRequiresNext_ReleaseWithNext()
+        decreases *
+    {
+        var result := RequiresNext(Release<TestState>(True<TestState>(), ReqNext<TestState>(False<TestState>()), 1));
+        expect result;
+    }
+
+    method {:test} TestEvaluateValidityTS_True()
+        decreases *
+    {
+        var result := EvaluateValidityTS(True<TestState>());
+        expect result.0 == DT();
+        expect result.1 == {};
+    }
+
+    method {:test} TestEvaluateValidityTS_False()
+        decreases *
+    {
+        var result := EvaluateValidityTS(False<TestState>());
+        expect result.0 == DF();
+        expect result.1 == {};
+    }
+
+    method {:test} TestEvaluateValidityTS_And()
+        decreases *
+    {
+        var result := EvaluateValidityTS(And<TestState>(True<TestState>(), True<TestState>()));
+        expect result.0 == DT();
+        expect result.1 == {};
+    }
+
+    method {:test} TestEvaluateValidityTS_Or()
+        decreases *
+    {
+        var result := EvaluateValidityTS(Or<TestState>(True<TestState>(), False<TestState>()));
+        expect result.0 == DT();
+        expect result.1 == {};
+    }
+
+    method {:test} TestEvaluateValidityTS_Not()
+        decreases *
+    {
+        var result := EvaluateValidityTS(Not<TestState>(True<TestState>()));
+        expect result.0 == DF();
+        expect result.1 == {};
+    }
+
+    method {:test} TestEvaluateValidityTS_ReqNext()
+        decreases *
+    {
+        var result := EvaluateValidityTS(ReqNext<TestState>(True<TestState>()));
+        expect result.0 == PT();
+        expect result.1 == {};
+    }
+
+    method {:test} TestEvaluateValidityTS_WeakNext()
+        decreases *
+    {
+        var result := EvaluateValidityTS(WeakNext<TestState>(True<TestState>()));
+        expect result.0 == PT();
+        expect result.1 == {};
+    }
+
+    method {:test} TestEvaluateValidityTS_StrongNext()
+        decreases *
+    {
+        var result := EvaluateValidityTS(StrongNext<TestState>(True<TestState>()));
+        expect result.0 == PF();
+        expect result.1 == {};
+    }
+
+    method {:test} TestPartialValidity_True()
+        decreases *
+    {
+        var result := CreatePartialValidity(True<TestState>());
+        expect !result.requiresNext;
+        expect result.validity == DT();
+        expect result.tags == {};
+    }
+
+    method {:test} TestPartialValidity_False()
+        decreases *
+    {
+        var result := CreatePartialValidity(False<TestState>());
+        expect !result.requiresNext;
+        expect result.validity == DF();
+        expect result.tags == {};
+    }
+
+    method {:test} TestPartialValidity_And()
+        decreases *
+    {
+        var result := CreatePartialValidity(And<TestState>(True<TestState>(), True<TestState>()));
+        expect !result.requiresNext;
+        expect result.validity == DT();
+        expect result.tags == {};
+    }
+
+    method {:test} TestPartialValidity_Or()
+        decreases *
+    {
+        var result := CreatePartialValidity(Or<TestState>(True<TestState>(), False<TestState>()));
+        expect !result.requiresNext;
+        expect result.validity == DT();
+        expect result.tags == {};
+    }
+
+    method {:test} TestPartialValidity_Not()
+        decreases *
+    {
+        var result := CreatePartialValidity(Not<TestState>(True<TestState>()));
+        expect !result.requiresNext;
+        expect result.validity == DF();
+        expect result.tags == {};
+    }
+
+    method {:test} TestPartialValidity_ReqNext()
+        decreases *
+    {
+        var result := CreatePartialValidity(ReqNext<TestState>(True<TestState>()));
+        expect result.requiresNext;
+        expect result.validity == PT();
+        expect result.tags == {};
+    }
+
+    method {:test} TestPartialValidity_WeakNext()
+        decreases *
+    {
+        var result := CreatePartialValidity(WeakNext<TestState>(True<TestState>()));
+        expect !result.requiresNext;
+        expect result.validity == PT();
+        expect result.tags == {};
+    }
+
+    method {:test} TestPartialValidity_StrongNext()
+        decreases *
+    {
+        var result := CreatePartialValidity(StrongNext<TestState>(True<TestState>()));
+        expect !result.requiresNext;
+        expect result.validity == PF();
+        expect result.tags == {};
+    }
+
+    method {:test} TestPartialValidity_Eventually()
+        decreases *
+    {
+        var result := CreatePartialValidity(Eventually<TestState>(True<TestState>(), 1));
+        expect !result.requiresNext;
+        expect result.validity == DF();
+        expect result.tags == {};
+    }
+
+    method {:test} TestPartialValidity_EventuallyWithNext()
+        decreases *
+    {
+        var result := CreatePartialValidity(Eventually<TestState>(ReqNext<TestState>(True<TestState>()), 1));
+        expect result.requiresNext;
+        expect result.validity == DF();
+        expect result.tags == {};
+    }
+
+    method {:test} TestPartialValidity_Always()
+        decreases *
+    {
+        var result := CreatePartialValidity(Always<TestState>(True<TestState>(), 1));
+        expect !result.requiresNext;
+        expect result.validity == DF();
+        expect result.tags == {};
+    }
+
+    method {:test} TestPartialValidity_AlwaysWithNext()
+        decreases *
+    {
+        var result := CreatePartialValidity(Always<TestState>(ReqNext<TestState>(True<TestState>()), 1));
+        expect result.requiresNext;
+        expect result.validity == DF();
+        expect result.tags == {};
+    }
+
+    method {:test} TestPartialValidity_Until()
+        decreases *
+    {
+        var result := CreatePartialValidity(Until<TestState>(True<TestState>(), False<TestState>(), 1));
+        expect !result.requiresNext;
+        expect result.validity == DF();
+        expect result.tags == {};
+    }
+
+    method {:test} TestPartialValidity_UntilWithNext()
+        decreases *
+    {
+        var result := CreatePartialValidity(Until<TestState>(True<TestState>(), ReqNext<TestState>(False<TestState>()), 1));
+        expect result.requiresNext;
+        expect result.validity == DF();
+        expect result.tags == {};
+    }
+
+    method {:test} TestPartialValidity_Release()
+        decreases *
+    {
+        var result := CreatePartialValidity(Release<TestState>(True<TestState>(), False<TestState>(), 1));
+        expect !result.requiresNext;
+        expect result.validity == DF();
+        expect result.tags == {};
+    }
+
+    method {:test} TestPartialValidity_ReleaseWithNext()
+        decreases *
+    {
+        var result := CreatePartialValidity(Release<TestState>(True<TestState>(), ReqNext<TestState>(False<TestState>()), 1));
+        expect result.requiresNext;
+        expect result.validity == DF();
+        expect result.tags == {};
+    }
+
+    method {:test} TestPartialValidity_WithTags()
+        decreases *
+    {
+        var formula := WithTags(True<TestState>(), {"tag1", "tag2"});
+        var result := CreatePartialValidity(formula);
+        expect !result.requiresNext;
+        expect result.validity == DT();
+        expect result.tags == {};
+    }
+
+    method {:test} TestPartialValidity_ComplexFormula()
+        decreases *
+    {
+        var formula := And<TestState>(
+            Eventually<TestState>(PredOf<TestState>((s: TestState) => s.value == 1), 1),
+            Always<TestState>(PredOf<TestState>((s: TestState) => s.value > 0), 1)
+        );
+        var result := CreatePartialValidity(formula);
+        expect !result.requiresNext;
+        expect result.validity == DF();
+        expect result.tags == {};
     }
 }
