@@ -1,4 +1,4 @@
-# @fast-check/LTL
+# fast-check-ltl
 
 Add the ability to test programs using model-based testing with [fast-check](https://fast-check.dev/) using [linear temporal logic](https://en.wikipedia.org/wiki/Linear_temporal_logic). Based on the work of [Oskar Wickstrom](https://quickstrom.io/) and [Liam O'Connor](https://arxiv.org/pdf/2203.11532.pdf).
 
@@ -11,7 +11,7 @@ Linear Temporal logic allows specifying how a state evolves over time. Applying 
 ## Install
 
 ```sh
-npm i --save-dev \@fast-check/LTL
+npm i --save-dev fast-check-ltl
 ```
 
 ## Examples

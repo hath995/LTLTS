@@ -1,20 +1,48 @@
 {
-  "name": "@fast-check/ltl",
+  "name": "fast-check-ltl",
   "version": "0.8.3",
-  "description": "",
-  "main": "dist/src/index.js",
+  "description": "Model-based testing with fast-check using linear temporal logic (LTL) formulas over model state.",
+  "keywords": [
+    "fast-check",
+    "property-based testing",
+    "model-based testing",
+    "temporal logic",
+    "ltl",
+    "temporal",
+    "testing"
+  ],
+  "main": "dist/main.js",
+  "types": "dist/main.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/main.d.ts",
+      "require": "./dist/main.js",
+      "default": "./dist/main.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build",
     "test": "npx jest",
     "sample-server": "cd tests/website_tests; python3 -m http.server"
   },
-  "author": "",
   "license": "ISC",
-  "files": [
-    "dist"
-  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "peerDependencies": {
+    "fast-check": "^3.16.0"
+  },
   "devDependencies": {
     "@types/debug": "^4.1.12",
     "@types/jest": "^29.5.12",
+    "@types/json-diff": "^1.0.3",
     "@types/lodash.isequal": "^4.5.8",
     "@types/node": "^20.11.25",
     "fast-check": "^3.16.0",
@@ -25,13 +53,9 @@
     "typescript": "^5.4.2"
   },
   "dependencies": {
-    "@types/json-diff": "^1.0.3",
     "debug": "^4.3.4",
     "immer": "^10.0.4",
     "json-diff": "^1.0.6",
     "lodash.isequal": "^4.5.0"
-  },
-  "publishConfig": {
-    "registry": "https://nexus.screenmeet.com/repository/sm-npm-private/"
   }
 }
