@@ -362,7 +362,7 @@ LTL.Comparison((s, n) => n.num === s.num + 1); // num grew by exactly one
   // "the value we saw now stays the same from here on"
   LTL.Bind((x: number) => LTL.Always((y: number) => y === x, 1));
   ```
-- **`Match<A, B>(selector: (state: A) => B)`** — case analysis on a selected value. Chain `.with(valueOrPredicate, formula)` clauses and finish with `.exhaustive()` (which asserts the cases cover all possibilities).
+- **`Match<A, B>(selector: (state: A) => B)`** — case analysis on a selected value: **narrow** a formula into specific cases. Chain `.with(valueOrPredicate, formula)` clauses and finish with `.exhaustive()` (which asserts the cases cover all possibilities).
   ```typescript
   LTL.Match((m) => m.selectedFilter)
     .with(null, (m) => m.numItems === 0)
@@ -372,7 +372,24 @@ LTL.Comparison((s, n) => n.num === s.num + 1); // num grew by exactly one
     .exhaustive();
   ```
   A `.with` clause takes either a concrete value (compared with deep equality) or a predicate function.
-- **`Contramap<A, B>(fn: (state: A) => B, expr: LTL.LTLFormula<B>)`** — lift a formula written over a *projection* `B` of the state back onto the full state `A`. Preserves tags.
+- **`Contramap<A, B>(fn: (state: A) => B, expr: LTL.LTLFormula<B>)`** — lift a formula written over a *smaller* model `B` back onto a larger state `A` via a projection `fn`. This is the **composition** primitive: develop a small, self-contained formula (e.g. the invariants of a single component), then `Contramap` it into any bigger model that contains it. Tags are preserved, so a failure in the big model still points at the specific small-model rule.
+  ```typescript
+  // A small, self-contained "cart" model
+  type Cart = { items: number[]; total: number };
+  const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
+  const cartInvariants: LTL.LTLFormula<Cart> = LTL.Always(LTL.And(
+    LTL.Tag("totalIsSum",  LTL.Comparison((s, n) => n.total === sum(n.items))),
+    LTL.Tag("nonNegative", LTL.Comparison((s, n) => n.items.every((x) => x >= 0)))
+  ));
+
+  // A big app model that contains the cart
+  type App = { cart: Cart; user: { name: string } };
+  const appSpec: LTL.LTLFormula<App> = LTL.Contramap(
+    (app) => app.cart,   // project the big state down to the small cart
+    cartInvariants
+  );
+  ```
+  `Contramap` **builds up** — it composes small formulas into larger models. Its counterpart, `Match`, does the opposite: it **narrows down** into a specific case.
 - **`Tag<T>(name: string, expr: LTL.LTLFormula<T>)`** — label a sub-formula so that when the run fails, the error reports *which* part broke. Tags bubble up the formula tree, so a failing rule reports its own tag plus the tags of any enclosing tagged formulas (see [Debugging failures with tags](#debugging-failures-with-tags)). Use liberally to make failures readable.
 
 ```typescript
